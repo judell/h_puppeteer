@@ -32,8 +32,8 @@ puppeteer.launch({
 //    '--user-agent=PuppeteerAgent'
   ]
 }).then(async browser => {
-  let page = await currentPage(browser)
-  console.log(page.url())
+  let pages = await browser.pages()
+  console.log(pages)
   //let page = await browser.targets()[browser.targets().length-1].page();
   //await page.goto('http://jonudell.net/h/power-of-habit.pdf')
 })
