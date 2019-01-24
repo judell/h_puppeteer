@@ -3,7 +3,10 @@ const https = require('https')
 
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
-const testUrl = 'http://jonudell.net/h/ee12.pdf'
+const testUrls = [
+  'http://jonudell.net/h/ee12.pdf',
+  //'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf'
+]
 
 function delay(seconds) {
   return new Promise( resolve => setTimeout(resolve, seconds * 1000))
@@ -31,16 +34,16 @@ async function callSearchApi(testUrl) {
     })
   }
   
-puppeteer.launch({
-    headless: false, // extensions only supported in full chrome.
-    args: [
-      `--disable-extensions-except=${CRX_PATH}`,
-      `--load-extension=${CRX_PATH}`,
-      '--remote-debugging-port=9222',
-      // '--enable-devtools-experiments' # useful for sniffing the chrome devtools protocol
-    ]
-  })
-  .then(async browser => {
+async function runTest(testUrl) {
+    let browser = await  puppeteer.launch({
+        headless: false, // extensions only supported in full chrome.
+        args: [
+          `--disable-extensions-except=${CRX_PATH}`,
+          `--load-extension=${CRX_PATH}`,
+          '--remote-debugging-port=9222',
+          // '--enable-devtools-experiments' # useful for sniffing the chrome devtools protocol
+        ]
+      })
     await waitSeconds(2) // give extension time to load
     let pages = await browser.pages()
     let page = pages[1] // 0 is the about page, 1 is the welcome page with h extension loaded
@@ -55,17 +58,29 @@ puppeteer.launch({
     })
     let anchored = {}
     highlights.forEach(highlight => {
-      // ids are sent from the sidebar, and added to the classname by annotator, 
-      // in order to coalesce highlights that span dom nodes
-      let annoId = highlight.class.replace('anotator-hl ','') 
-      if (! anchored[annoId]) {
-        anchored[annoId] = ''
-      }
-      anchored[annoId] += highlight.text
+        // ids are sent from the sidebar, and added to the classname by annotator, 
+        // in order to coalesce highlights that span dom nodes
+        let annoId = highlight.class.replace('anotator-hl ','') 
+        if (! anchored[annoId]) {
+          anchored[annoId] = ''
+        }
+        anchored[annoId] += highlight.text
     })
-    console.log(anchored)
-
     let apiResults = await(callSearchApi(testUrl))
-    console.log(apiResults)
-  })
+    browser.close()
+    return {testUrl: testUrl, anchored: anchored, apiResults: apiResults}
+  }
 
+async function runTestOnAllUrls() {
+  let results = []
+  for ( let i=0; i<testUrls.length; i++) {
+    let r = await runTest(testUrls[i])
+    results.push(r)
+  }
+  return JSON.stringify(results)
+}
+
+runTestOnAllUrls()
+ .then(r => {
+   console.log(r)
+ })
