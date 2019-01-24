@@ -5,7 +5,7 @@ const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const testUrls = [
   'http://jonudell.net/h/ee12.pdf',
-  //'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf'
+  'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf'
 ]
 
 function delay(seconds) {
@@ -77,7 +77,7 @@ async function runTestOnAllUrls() {
     let r = await runTest(testUrls[i])
     results.push(r)
   }
-  return JSON.stringify(results)
+  return Promise.resolve(JSON.stringify(results))
 }
 
 runTestOnAllUrls()
