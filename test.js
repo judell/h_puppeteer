@@ -4,7 +4,7 @@ const https = require('https')
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const testUrls = [
-  'http://jonudell.net/h/ee12.pdf',
+  //'http://jonudell.net/h/ee12.pdf',
   'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf'
 ]
 
@@ -34,7 +34,7 @@ async function callSearchApi(testUrl) {
     })
   }
   
-async function runTest(testUrl) {
+async function runPdfTest(testUrl) {
     let browser = await  puppeteer.launch({
         headless: false, // extensions only supported in full chrome.
         args: [
@@ -50,37 +50,51 @@ async function runTest(testUrl) {
     const client = await page.target().createCDPSession()
     await client.send('Runtime.enable')
     await client.send('Page.navigate', { url: testUrl })
-    await waitSeconds(3)
-    const highlights = await page.evaluate(() => {
-      let _highlights = Array.from(document.querySelectorAll('hypothesis-highlight'))
-      _highlights = _highlights.map(_hl => {return {text: _hl.innerHTML, class: _hl.getAttribute('class')}})
-      return Promise.resolve(_highlights)
+    await waitSeconds(5)
+    const pdfPageCount = await page.evaluate( () => {
+      let _pdfPages = Array.from(document.querySelectorAll('.page'))
+      return Promise.resolve(_pdfPages.length)
     })
-    let anchored = {}
-    highlights.forEach(highlight => {
-        // ids are sent from the sidebar, and added to the classname by annotator, 
-        // in order to coalesce highlights that span dom nodes
-        let annoId = highlight.class.replace('anotator-hl ','') 
-        if (! anchored[annoId]) {
-          anchored[annoId] = ''
-        }
-        anchored[annoId] += highlight.text
-    })
+
+    console.log(pdfPageCount)
+
+    for (let i = 1; i <= 4; i++) {
+      await client.send('Page.navigate', { url: `${testUrl}#${i}` })
+      const results = await page.evaluate(() => { // this function runs in the browser, is not debuggable here
+        document.querySelector('button[name=sidebar-toggle]').click()
+        let nodes = Array.from(document.querySelectorAll('hypothesis-highlight'))
+        let highlights = nodes.map(node => {return {text: node.innerHTML, class: node.getAttribute('class')}})
+        nodes = nodes.filter(node => { return node.innerText != 'Loading annotations…' })
+        return Promise.resolve({highlights: highlights, nodeCount: nodes.length, highlightCount: highlights.length})
+      })
+      let anchored = {}
+      results.highlights.forEach(highlight => {
+          // ids are sent from the sidebar, and added to the classname by annotator, 
+          // in order to coalesce highlights that span dom nodes
+          let annoId = highlight.class.replace('anotator-hl ','') 
+          if (! anchored[annoId]) {
+            anchored[annoId] = ''
+          }
+          anchored[annoId] += highlight.text
+      })
+    }
+
+
     let apiResults = await(callSearchApi(testUrl))
     browser.close()
     return {testUrl: testUrl, anchored: anchored, apiResults: apiResults}
   }
 
-async function runTestOnAllUrls() {
+async function runTestOnAllPdfUrls() {
   let results = []
   for ( let i=0; i<testUrls.length; i++) {
-    let r = await runTest(testUrls[i])
+    let r = await runPdfTest(testUrls[i])
     results.push(r)
   }
   return Promise.resolve(JSON.stringify(results))
 }
 
-runTestOnAllUrls()
+runTestOnAllPdfUrls()
  .then(r => {
    console.log(r)
  })
