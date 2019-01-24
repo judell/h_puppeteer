@@ -63,11 +63,9 @@ async function runPdfTest(testUrl) {
       await client.send('Page.navigate', { url: `${testUrl}#${i}` })
       await waitSeconds(3) // let nav settle before running code in the page
       const results = await page.evaluate(() => { // this function runs in the browser, is not debuggable here
-        //document.querySelector('button[name=sidebar-toggle]').click()
-        let nodes = Array.from(document.querySelectorAll('hypothesis-highlight'))
-        let highlights = nodes.map(node => {return {text: node.innerHTML, class: node.getAttribute('class')}})
-        nodes = nodes.filter(node => { return node.innerText != 'Loading annotations…' })
-        return Promise.resolve({highlights: highlights, nodeCount: nodes.length, highlightCount: highlights.length})
+      nodes = nodes.filter(node => { return node.innerText !== 'Loading annotations…' }) // remove placeholders
+      let highlights = nodes.map(node => {return {text: node.innerText, class: node.getAttribute('class')}})
+      return Promise.resolve({highlights: highlights, highlightCount: highlights.length})
       })
       var anchored = {}
       results.highlights.forEach(highlight => {
