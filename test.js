@@ -4,8 +4,8 @@ const https = require('https')
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const testUrls = [
-  'http://jonudell.net/h/ee12.pdf',
-  //'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf'
+  //'http://jonudell.net/h/ee12.pdf',
+  'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf'
   // https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf'
 ]
 
@@ -76,6 +76,7 @@ async function runPdfTest(testUrl) {
   let ids = Object.keys(apiHighlights)
 
   for (let i = 0; i <= ids.length; i++)  {
+
     let id = ids[i]
     let searchText = apiHighlights[id]
 
@@ -84,7 +85,9 @@ async function runPdfTest(testUrl) {
       findInput.value = searchText
       PDFViewerApplication.findBar.dispatchEvent('')
     }, searchText)
-    await waitSeconds(1) // let nav settle before running code in the page
+
+    await waitSeconds(pdfPageCount * .0025) // let search settle before running code in the page
+
     const probeResults = await page.evaluate(() => { // this function runs in the browser, is not debuggable here
         let nodes = Array.from(document.querySelectorAll('hypothesis-highlight'))
         nodes = nodes.filter(node => { return node.innerText !== 'Loading annotations…' }) // remove placeholders
