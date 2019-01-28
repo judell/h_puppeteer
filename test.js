@@ -5,7 +5,8 @@ const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const testUrls = [
   //'http://jonudell.net/h/ee12.pdf',
-  'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf'
+  'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf'
+  // https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf'
 ]
 
 function delay(seconds) {
@@ -66,12 +67,22 @@ async function runPdfTest(testUrl) {
     return Promise.resolve(_pdfPages.length)
   })
 
+  await waitSeconds(pdfPageCount/25)
+
   console.log(pdfPageCount)
 
   const finalResults = {}
 
-  for (let pdfPageIndex = 1; pdfPageIndex <= 4; pdfPageIndex++) {
-    await client.send('Page.navigate', { url: `${testUrl}#${pdfPageIndex}` })
+  for (let pdfPageIndex = 27; pdfPageIndex <= 27; pdfPageIndex++) {
+    //await client.send('Page.navigate', { url: `${testUrl}#${pdfPageIndex}` })
+    let pageId = `pageContainer${pdfPageIndex}`
+    console.log(`pageId ${pageId}`)
+    page.evaluate( pageId => {
+      console.log(`pageId ${pageId}`)
+      let pageElement = document.getElementById(pageId)
+      console.log(`pdfPageElement ${pageElement}`)
+      pageElement.scrollIntoView()
+    }, pageId)
     await waitSeconds(3) // let nav settle before running code in the page
     const probeResults = await page.evaluate(() => { // this function runs in the browser, is not debuggable here
       let nodes = Array.from(document.querySelectorAll('hypothesis-highlight'))
