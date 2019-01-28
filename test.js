@@ -4,8 +4,8 @@ const https = require('https')
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const testUrls = [
-  //'http://jonudell.net/h/ee12.pdf',
-  'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf'
+  'http://jonudell.net/h/ee12.pdf',
+  //'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf'
   // https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf'
 ]
 
@@ -73,25 +73,23 @@ async function runPdfTest(testUrl) {
 
   const finalResults = {}
 
-  for (let pdfPageIndex = 27; pdfPageIndex <= 27; pdfPageIndex++) {
-    //await client.send('Page.navigate', { url: `${testUrl}#${pdfPageIndex}` })
-    let pageId = `pageContainer${pdfPageIndex}`
-    console.log(`pageId ${pageId}`)
-    page.evaluate( pageId => {
-      console.log(`pageId ${pageId}`)
-      let pageElement = document.getElementById(pageId)
-      console.log(`pdfPageElement ${pageElement}`)
-      //pageElement.scrollIntoView()
+  let ids = Object.keys(apiHighlights)
+
+  for (let i = 0; i <= ids.length; i++)  {
+    let id = ids[i]
+    let searchText = apiHighlights[id]
+
+    page.evaluate( searchText => {
       let findInput = document.getElementById('findInput')
-      findInput.value = 'socrates'
+      findInput.value = searchText
       PDFViewerApplication.findBar.dispatchEvent('')
-    }, pageId)
-    await waitSeconds(3) // let nav settle before running code in the page
+    }, searchText)
+    await waitSeconds(1) // let nav settle before running code in the page
     const probeResults = await page.evaluate(() => { // this function runs in the browser, is not debuggable here
-      let nodes = Array.from(document.querySelectorAll('hypothesis-highlight'))
-      nodes = nodes.filter(node => { return node.innerText !== 'Loading annotations…' }) // remove placeholders
-      let highlights = nodes.map(node => {return {text: node.innerText, class: node.getAttribute('class')}})
-      return Promise.resolve({highlights: highlights, highlightCount: highlights.length})
+        let nodes = Array.from(document.querySelectorAll('hypothesis-highlight'))
+        nodes = nodes.filter(node => { return node.innerText !== 'Loading annotations…' }) // remove placeholders
+        let highlights = nodes.map(node => {return {text: node.innerText, class: node.getAttribute('class')}})
+        return Promise.resolve({highlights: highlights, highlightCount: highlights.length})
     })
 
     const anchored = {}
@@ -113,7 +111,7 @@ async function runPdfTest(testUrl) {
       } 
       anchored[probeAnnoId] += probeHighlight.text
     }
-  }
+  } 
 
   browser.close()
   return {testUrl: testUrl, anchored: anchored, apiResults: apiResults}
