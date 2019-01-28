@@ -81,7 +81,10 @@ async function runPdfTest(testUrl) {
       console.log(`pageId ${pageId}`)
       let pageElement = document.getElementById(pageId)
       console.log(`pdfPageElement ${pageElement}`)
-      pageElement.scrollIntoView()
+      //pageElement.scrollIntoView()
+      let findInput = document.getElementById('findInput')
+      findInput.value = 'socrates'
+      PDFViewerApplication.findBar.dispatchEvent('')
     }, pageId)
     await waitSeconds(3) // let nav settle before running code in the page
     const probeResults = await page.evaluate(() => { // this function runs in the browser, is not debuggable here
