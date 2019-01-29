@@ -4,13 +4,13 @@ const https = require('https')
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const testUrls = [
-   'http://jonudell.net/h/ee12.pdf',
+  // 'http://jonudell.net/h/ee12.pdf',
   // 'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
   // 'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
   // 'https://www.jyu.fi/edu/laitokset/okl/koulutusala/vkluoko/tietopankki/tutkimusta/viittomakielinen_juhlajulkaisu_nettiversio.pdf', // 404, https://github.com/hypothesis/browser-extension/issues/12
   // 'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338
   // 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0183175', // not a pdf, https://github.com/hypothesis/client/issues/558
-  // 'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
+   'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
 ]
 
 function delay(seconds) {
@@ -69,6 +69,7 @@ async function runPdfTest(testUrl) {
       `--disable-extensions-except=${CRX_PATH}`,
       `--load-extension=${CRX_PATH}`,
       '--remote-debugging-port=9222',
+      //'--window-size=1800,1000'
       // '--enable-devtools-experiments' # useful for sniffing the chrome devtools protocol
     ]
   })
@@ -95,36 +96,40 @@ async function runPdfTest(testUrl) {
   for (let i = 0; i < ids.length; i++)  {
 
     let id = ids[i]
-    console.log(`working on ${id}`)
+    //console.log(`working on ${id}`)
 
     let searchText = apiHighlights[id]
 
-    await page.evaluate( searchText => {
+    let searchOutcome = await page.evaluate( searchText => {
       try {
         let findInput = document.getElementById('findInput')
         findInput.value = searchText
         PDFViewerApplication.findBar.dispatchEvent('')
       } catch (e) {
-        console.log(searchText, e)
+        console.error(searchText, e)
+        return Promise.resolve(e)
       }
       return Promise.resolve(true)
     }, searchText)
 
-    //await waitSeconds(pdfPageCount * .0025) // let search settle before running code in the page
-    await waitSeconds(2)
+    console.log(`searchOutcome: ${searchOutcome}`)
 
+    await waitSeconds(5)
+ 
+    /*
     let clickOutcome = await page.evaluate( id => {
       let highlight = document.querySelector('.h_' + id)
       console.log(`id: ${id}, highlight ${highlight}`)
-      if (typeof highlight.click === 'function') {
+      if (highlight && typeof highlight.click === 'function') {
         highlight.click()
-        return Promise.resolve(true)
+        return Promise.resolve(`can click ${id}`)
       } else {
-        return Promise.resolve(false)
+        console.log('cannot click')
+        return Promise.resolve(`cannot click ${id}`)
       }
     }, id)
-
     console.log(`clickOutcome: ${clickOutcome}`)
+    */
 
     const probeResults = await page.evaluate(() => { // this function runs in the browser, is not debuggable here
         let nodes = Array.from(document.querySelectorAll('hypothesis-highlight'))
