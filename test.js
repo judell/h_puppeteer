@@ -3,14 +3,17 @@ const https = require('https')
 
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
+const apiHighlights = {}
+const anchoredHighlights = {} 
+
 const testUrls = [
   // 'http://jonudell.net/h/ee12.pdf',
-  // 'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
+   'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
   // 'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
   // 'https://www.jyu.fi/edu/laitokset/okl/koulutusala/vkluoko/tietopankki/tutkimusta/viittomakielinen_juhlajulkaisu_nettiversio.pdf', // 404, https://github.com/hypothesis/browser-extension/issues/12
   // 'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338
   // 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0183175', // not a pdf, https://github.com/hypothesis/client/issues/558
-   'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
+ // 'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
 ]
 
 function delay(seconds) {
@@ -38,8 +41,9 @@ async function callSearchApi(testUrl) {
       })
     })
   }
+
 async function runPdfTest(testUrl) {
-  
+
   // gather results from the api
   let apiResults = JSON.parse(await(callSearchApi(testUrl)))
   let apiRows = apiResults.rows.filter( row => {
@@ -57,7 +61,6 @@ async function runPdfTest(testUrl) {
   })
 
   //convert apiResults to expected highlights
-  let apiHighlights = {};
   for (let i = 0, anno; i < apiResults.length; i++) {
      anno = apiResults[i].anno;
      apiHighlights[anno.id] = anno.quote
@@ -81,83 +84,73 @@ async function runPdfTest(testUrl) {
   const client = await page.target().createCDPSession()
   await client.send('Page.navigate', { url: testUrl })
   await waitSeconds(5)
-  const pdfPageCount = await page.evaluate( () => {
-    let _pdfPages = Array.from(document.querySelectorAll('.page'))
+  const pdfPageCount = await page.evaluate( () => {    let _pdfPages = Array.from(document.querySelectorAll('.page'))
     return Promise.resolve(_pdfPages.length)
   })
 
   await waitSeconds(pdfPageCount/25)
   //await waitSeconds(20)
 
-  const anchoredHighlights = {}
-
   let ids = Object.keys(apiHighlights)
 
   for (let i = 0; i < ids.length; i++)  {
 
     let id = ids[i]
-    //console.log(`working on ${id}`)
+    console.log(`working on ${id}`)
 
     let searchText = apiHighlights[id]
 
-    let searchOutcome = await page.evaluate( searchText => {
-      try {
-        let findInput = document.getElementById('findInput')
-        findInput.value = searchText
-        PDFViewerApplication.findBar.dispatchEvent('')
-      } catch (e) {
-        console.error(searchText, e)
-        return Promise.resolve(e)
-      }
-      return Promise.resolve(true)
-    }, searchText)
+    let anchored = await page.evaluate( (id, searchText, apiHighlightsq) => {
+      console.log(`evaluating ${id}, ${searchText} at ${Date.now()/1000}`)
+      async function waitSeconds(seconds) {
+        function delay(seconds) {
+          return new Promise( resolve => setTimeout(resolve, seconds * 1000))
+        }
+        await delay(seconds)
+      }      
+      let findInput = document.getElementById('findInput')
+      findInput.value = searchText
+      PDFViewerApplication.findBar.dispatchEvent('')
+      return waitSeconds(3)
+        .then ( _ => {
+          let highlights = Array.from(document.querySelectorAll(`.h_${id}`))
+          let highlight = highlights[0]
+          console.log(`id: ${id}, highlight, ${JSON.stringify(highlight)}, highlights ${JSON.stringify(highlights)}`)
+          try {
+            console.log(`search for ${id} done, now click at ${Date.now()/1000}`)
+            highlight.click()
+            console.log(`now gather for ${id} at ${Date.now()/1000}`)
+            highlights = highlights.map(hl => {return {text: hl.innerText}})
+            console.log(`highlights ${JSON.stringify(highlights)}`)
 
-    console.log(`searchOutcome: ${searchOutcome}`)
+            const anchored = {}
+            let _anchoredHighlight = ''
 
-    await waitSeconds(5)
- 
-    /*
-    let clickOutcome = await page.evaluate( id => {
-      let highlight = document.querySelector('.h_' + id)
-      console.log(`id: ${id}, highlight ${highlight}`)
-      if (highlight && typeof highlight.click === 'function') {
-        highlight.click()
-        return Promise.resolve(`can click ${id}`)
-      } else {
-        console.log('cannot click')
-        return Promise.resolve(`cannot click ${id}`)
-      }
-    }, id)
-    console.log(`clickOutcome: ${clickOutcome}`)
-    */
-
-    const probeResults = await page.evaluate(() => { // this function runs in the browser, is not debuggable here
-        let nodes = Array.from(document.querySelectorAll('hypothesis-highlight'))
-        //nodes = nodes.filter(node => { return node.innerText !== 'Loading annotations…' }) // remove placeholders
-        let highlights = nodes.map(node => {return {text: node.innerText, class: node.getAttribute('class')}})
-        return Promise.resolve({highlights: highlights, highlightCount: highlights.length})
-    })
-
-    const anchored = {}
-
-    for (let hlIndex = 0, probeHighlight; hlIndex < probeResults.highlights.length; hlIndex++ ) {
-      // ids are sent from the sidebar, and added to the classname by annotator, 
-      // in order to coalesce highlights that span dom nodes
-      probeHighlight = probeResults.highlights[hlIndex]
-      let probeAnnoId = probeHighlight.class.replace('annotator-hl h_','')
-      let apiHighlight = apiHighlights[probeAnnoId] 
-      let _anchoredHighlight = anchored[probeAnnoId] ? anchored[probeAnnoId] : ''
-      let anchoredHighlight = _anchoredHighlight + probeHighlight.text
-      if ( anchoredHighlight === apiHighlight && ! anchoredHighlights[probeAnnoId]) {
-        anchoredHighlights[probeAnnoId] = anchoredHighlight
-        continue
-      } 
-      if (! anchored[probeAnnoId]) {
-          anchored[probeAnnoId] = ''
-      } 
-      anchored[probeAnnoId] += probeHighlight.text
-    }
-  } 
+            for (let i = 0, hl; i < highlights.length; i++ ) {
+              // ids are sent from the sidebar, and added to the classname by annotator, 
+              // in order to coalesce highlights that span dom nodes
+              hl = highlights[i]
+              console.log(`highlight ${JSON.stringify(hl)}`)
+              let apiHighlight = apiHighlights[id] 
+              _anchoredHighlight += hl.text
+              console.log(`apiHighlight ${apiHighlight}, anchoredHighlight ${_anchoredHighlight}`)
+              if ( _anchoredHighlight === apiHighlight && ! anchored[id]) {
+                anchored[id] = _anchoredHighlight
+                console.log(`continuing`)
+                continue
+              } 
+              //console.log(`returning anchored[${id}] ${JSON.stringify(anchored[id])}`)
+            }
+            return Promise.resolve(anchored)
+          } catch(e) {
+            console.error(id, searchText, e)
+            return Promise.resolve(e)
+          }
+        })
+    }, id, searchText, apiHighlights, anchoredHighlights)
+    console.log(`anchored ${anchored}`)
+    anchoredHighlights[id] = anchored[id]
+  }
 
   browser.close()
   return {testUrl: testUrl, pdfPageCount: pdfPageCount, apiHighlights: apiHighlights, anchoredHighlights: anchoredHighlights}
@@ -289,5 +282,5 @@ function parseSelectors(target) {
           }
       }
   }
-  return parsedSelectors;
+  return parsedSelectors
 }
