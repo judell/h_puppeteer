@@ -124,7 +124,7 @@ async function runPdfTest(testUrl) {
       }
     }, id)
 
-    console.log(`clickOutcome: ${clickOutcome})
+    console.log(`clickOutcome: ${clickOutcome}`)
 
     const probeResults = await page.evaluate(() => { // this function runs in the browser, is not debuggable here
         let nodes = Array.from(document.querySelectorAll('hypothesis-highlight'))
