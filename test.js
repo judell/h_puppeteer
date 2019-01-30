@@ -4,9 +4,6 @@ const fs = require('fs')
 
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
-const apiHighlights = {}
-const anchoredHighlights = {}
-
 const testUrls = [
   //'http://jonudell.net/h/ee12.pdf',
   //'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
@@ -47,6 +44,9 @@ async function callSearchApi(testUrl) {
 }
 
 async function runPdfTest(testUrl) {
+
+  const apiHighlights = {}
+  const anchoredHighlights = {}  
 
   // gather results from the api
   let apiResults = await getApiResults(testUrl)
