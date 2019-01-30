@@ -8,8 +8,8 @@ const apiHighlights = {}
 const anchoredHighlights = {}
 
 const testUrls = [
-  'http://jonudell.net/h/ee12.pdf',
-  'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
+  //'http://jonudell.net/h/ee12.pdf',
+  //'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
   'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
   'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338
   'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
@@ -125,6 +125,11 @@ async function runPdfTest(testUrl) {
             
             for (let i = 0, hl; i < highlights.length; i++) {
               hl = highlights[i]
+              if (hl.text === 'Loading annotations…') {
+                console.log(`got 'Loading annotations…', maybe orphan`)
+                anchored[id] = 'maybe orphan?'
+                break
+              }
               _anchoredHighlight += hl.text  // accumulate highlight text in the document
               if (_anchoredHighlight === apiHighlights[id] && !anchored[id]) {  // exactly equal to api result?
                 anchored[id] = _anchoredHighlight
@@ -147,7 +152,7 @@ async function runPdfTest(testUrl) {
     anchoredHighlights[id] = anchored[id]
   }
 
-  browser.close()
+  await browser.close()
   return { testUrl: testUrl, pdfPageCount: pdfPageCount, apiHighlights: apiHighlights, anchoredHighlights: anchoredHighlights }
 
   async function getApiResults(testUrl) {
