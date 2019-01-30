@@ -49,20 +49,7 @@ async function callSearchApi(testUrl) {
 async function runPdfTest(testUrl) {
 
   // gather results from the api
-  let apiResults = JSON.parse(await (callSearchApi(testUrl)))
-  let apiRows = apiResults.rows.filter(row => {
-    selectors = parseSelectors(row.target)
-    return Object.keys(selectors).length // filter out page notes
-  })
-  apiResults = apiRows.map(row => {
-    let anno = parseAnnotation(row)
-    let selectors = parseSelectors(row.target)
-    let textPosition = selectors.TextPosition
-    return { id: row.id, anno: anno, start: textPosition.start }
-  })
-  apiResults.sort((a, b) => {  // put in document order
-    return a.start - b.start
-  })
+  let apiResults = await getApiResults()
 
   //convert apiResults to expected highlights
   for (let i = 0, anno; i < apiResults.length; i++) {
@@ -121,7 +108,7 @@ async function runPdfTest(testUrl) {
       let seconds = 10
       console.log(`waiting ${seconds}`)
       return waitSeconds(seconds)
-        .then(_ => {
+        .then( _ => {
           let highlights = Array.from(document.querySelectorAll(`.h_${id}`))
           let highlight = highlights[0]
           try {
@@ -148,7 +135,6 @@ async function runPdfTest(testUrl) {
                 anchored[id] = _anchoredHighlight
                 console.log('found fuzzy match')
               }
-
             }
             return Promise.resolve(anchored)
           } catch (e) {
@@ -163,6 +149,24 @@ async function runPdfTest(testUrl) {
 
   browser.close()
   return { testUrl: testUrl, pdfPageCount: pdfPageCount, apiHighlights: apiHighlights, anchoredHighlights: anchoredHighlights }
+
+  async function getApiResults() {
+    let apiResults = JSON.parse(await (callSearchApi(testUrl)));
+    let apiRows = apiResults.rows.filter(row => {
+      selectors = parseSelectors(row.target);
+      return Object.keys(selectors).length; // filter out page notes
+    });
+    apiResults = apiRows.map(row => {
+      let anno = parseAnnotation(row);
+      let selectors = parseSelectors(row.target);
+      let textPosition = selectors.TextPosition;
+      return { id: row.id, anno: anno, start: textPosition.start };
+    });
+    apiResults.sort((a, b) => {
+      return a.start - b.start;
+    });
+    return apiResults;
+  }
 }
 
 async function runTestOnAllPdfUrls() {
@@ -176,41 +180,49 @@ async function runTestOnAllPdfUrls() {
 
 runTestOnAllPdfUrls()
   .then(results => {
-    let summary = {}
-    let keys = Object.keys(results)
-    keys.forEach(key => {
-      let obj = results[key]
-      console.log(`${obj.testUrl} (pages: ${obj.pdfPageCount})`)
-      let expectedHighlights = obj.apiHighlights
-      let anchoredHighlights = obj.anchoredHighlights
-      let expectedIds = Object.keys(expectedHighlights)
-      let summary = {}
-      expectedIds.forEach(id => {
-        let expectedHighlight = expectedHighlights[id]
-        let anchoredHighlight = anchoredHighlights.hasOwnProperty(id) ? anchoredHighlights[id] : null
-        if (!anchoredHighlight) {
-          anchorOutcome = 'none'
-        } else if (expectedHighlight === anchoredHighlight) {
-          anchorOutcome = 'exact'
-        } else {
-          anchorOutcome = 'fuzzy'
-        }
-        let test = (id in anchoredHighlights && expectedHighlight === anchoredHighlight)
-        if (test) {
-          summary[id] = { expected: expectedHighlight, anchored: true, anchorOutcome: anchorOutcome }
-        } else {
-          summary[id] = { expected: expectedHighlight, anchored: anchoredHighlight, anchorOutcome: anchorOutcome }
-        }
-      })
-      summary = `{ ${JSON.stringify(summary, null, 2)} }`
-      console.log(summary)
-      fs.writeFile(`${key}.json`, summary, err => {
-        if (err) {
-          return console.log(err);
-        }
-      })
-    })
+    digestPdfResults(results);
   })
+
+function digestPdfResults(results) {
+  let summary = {};
+  let keys = Object.keys(results);
+  keys.forEach(key => {
+    let obj = results[key];
+    console.log(`${obj.testUrl} (pages: ${obj.pdfPageCount})`);
+    let expectedHls = obj.apiHighlights;
+    let anchoredHls = obj.anchoredHighlights;
+    let expectedIds = Object.keys(expectedHls);
+    let summary = {};
+    expectedIds.forEach(id => {
+      let expectedHl = expectedHls[id];
+      let anchoredHl = anchoredHls.hasOwnProperty(id) ? anchoredHls[id] : null;
+      let anchorOutcome;
+      if (!anchoredHl) {
+        anchorOutcome = 'none';
+      }
+      else if (expectedHl === anchoredHl) {
+        anchorOutcome = 'exact';
+      }
+      else {
+        anchorOutcome = 'fuzzy';
+      }
+      let test = (id in anchoredHls && expectedHl === anchoredHl);
+      if (test) {
+        summary[id] = { expected: expectedHl, anchored: true, anchorOutcome: anchorOutcome };
+      }
+      else {
+        summary[id] = { expected: expectedHl, anchored: anchoredHl, anchorOutcome: anchorOutcome };
+      }
+    });
+    summary = `{ ${JSON.stringify(summary, null, 2)} }`;
+    console.log(summary);
+    fs.writeFile(`${key}.json`, summary, err => {
+      if (err) {
+        return console.log(err);
+      }
+    });
+  });
+}
 
 // from hlib
 
