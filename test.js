@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer')
 const https = require('https')
+const fs = require('fs')
 
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
@@ -8,13 +9,20 @@ const anchoredHighlights = {}
 
 const testUrls = [
   // 'http://jonudell.net/h/ee12.pdf',
-  //  'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
+   'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
   // 'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
   // 'https://www.jyu.fi/edu/laitokset/okl/koulutusala/vkluoko/tietopankki/tutkimusta/viittomakielinen_juhlajulkaisu_nettiversio.pdf', // 404, https://github.com/hypothesis/browser-extension/issues/12
   // 'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338
   // 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0183175', // not a pdf, https://github.com/hypothesis/client/issues/558
   // 'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
+  /*
   'https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf',
+  'http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly-and-Rochberg-Halton-1981-The-Meaning-of-Things-Domestic-Symbols-and-the-Self.pdf',
+  'https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf',
+  'http://download.krone.at/pdf/ceta.pdf',
+  'https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf',
+  'https://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf'
+  */
 ]
 
 function delay(seconds) {
@@ -84,7 +92,9 @@ async function runPdfTest(testUrl) {
   let page = pages[1] // 0 is the about page, 1 is the welcome page with h extension loaded
   const client = await page.target().createCDPSession()
   await client.send('Page.navigate', { url: testUrl })
-  await waitSeconds(10)
+  let seconds = 20
+  console.log(`waiting ${seconds}`)
+  await waitSeconds(seconds)
   const pdfPageCount = await page.evaluate( () => {    let _pdfPages = Array.from(document.querySelectorAll('.page'))
     return Promise.resolve(_pdfPages.length)
   })
@@ -101,6 +111,7 @@ async function runPdfTest(testUrl) {
     let searchText = apiHighlights[id]
 
     let anchored = await page.evaluate( (id, searchText, apiHighlights, pdfPageCount) => {
+
       console.log(`evaluating id ${id}, pdfPageCount ${pdfPageCount}, searchText ${searchText} at ${Date.now()/1000}`)
       async function waitSeconds(seconds) {
         function delay(seconds) {
@@ -111,14 +122,16 @@ async function runPdfTest(testUrl) {
       let findInput = document.getElementById('findInput')
       findInput.value = searchText
       PDFViewerApplication.findBar.dispatchEvent('')
-      return waitSeconds(4)
+      let seconds = 10
+      console.log (`waiting ${seconds}`)
+      return waitSeconds(seconds)
         .then ( _ => {
           let highlights = Array.from(document.querySelectorAll(`.h_${id}`))
           let highlight = highlights[0]
           try {
             console.log(`search for ${id} done, now click at ${Date.now()/1000}`)
             highlight.click()
-            console.log(`now gather for ${id} at ${Date.now()/1000}`)
+            console.log(`gather for ${id} at ${Date.now()/1000}`)
             highlights = highlights.map(hl => {return {text: hl.innerText}})
             console.log(`highlights ${JSON.stringify(highlights)}`)
 
@@ -129,7 +142,7 @@ async function runPdfTest(testUrl) {
               hl = highlights[i]
               let apiHighlight = apiHighlights[id] 
               _anchoredHighlight += hl.text
-              console.log(`apiHighlight ${apiHighlight}, anchoredHighlight ${_anchoredHighlight}`)
+              //console.log(`apiHighlight ${apiHighlight}, anchoredHighlight ${_anchoredHighlight}`)
               if ( _anchoredHighlight === apiHighlight && ! anchored[id]) {
                 anchored[id] = _anchoredHighlight
                 console.log('found exact match')
@@ -148,7 +161,7 @@ async function runPdfTest(testUrl) {
           }
         })
     }, id, searchText, apiHighlights, pdfPageCount)
-    console.log(`anchored ${anchored}`)
+    console.log(`anchored ${JSON.stringify(anchored)}`)
     anchoredHighlights[id] = anchored[id]
   }
 
@@ -167,15 +180,13 @@ async function runTestOnAllPdfUrls() {
 
 runTestOnAllPdfUrls()
   .then(results => {
+    let summary = {}
     let keys = Object.keys(results)
     keys.forEach(key => {
       let obj = results[key]
       console.log(`${obj.testUrl} (pages: ${obj.pdfPageCount})`)
       let expectedHighlights = obj.apiHighlights
       let anchoredHighlights = obj.anchoredHighlights
-      let countMatches = (expectedHighlights.length == anchoredHighlights.length) ? 'yes' : 'no'
-      let msg = `expected highlight count matches anchored highlight count? ${countMatches}`
-      console.log(msg)
       let expectedIds = Object.keys(expectedHighlights)
       let summary = {}
       expectedIds.forEach(id => {
@@ -195,25 +206,31 @@ runTestOnAllPdfUrls()
           summary[id] = { expected: expectedHighlight, anchored: anchoredHighlight, anchorOutcome: anchorOutcome }
         }
       })
-      console.log(`details ${JSON.stringify(summary, null, 2)}`)
+      summary = `{ ${JSON.stringify(summary, null, 2)} }`
+       console.log(summary)
+      fs.writeFile(`${key}.json`, summary, err => {
+        if(err) {
+            return console.log(err);
+        }
+      })
     })
   })
 
 // from hlib
 
 function parseAnnotation(row) {
-  var id = row.id;
-  var url = row.uri;
-  var updated = row.updated.slice(0, 19);
-  var group = row.group;
-  var title = url;
-  var refs = row.references ? row.references : [];
-  var user = row.user.replace('acct:', '').replace('@hypothes.is', '');
-  var quote = '';
+  let id = row.id;
+  let url = row.uri;
+  let updated = row.updated.slice(0, 19);
+  let group = row.group;
+  let title = url;
+  let refs = row.references ? row.references : [];
+  let user = row.user.replace('acct:', '').replace('@hypothes.is', '');
+  let quote = '';
   if (row.target && row.target.length) {
-      var selectors = row.target[0].selector;
+      let selectors = row.target[0].selector;
       if (selectors) {
-          for (var i = 0; i < selectors.length; i++) {
+          for (let i = 0; i < selectors.length; i++) {
               let selector = selectors[i];
               if (selector.type === 'TextQuoteSelector') {
                   quote = selector.exact;
@@ -221,8 +238,8 @@ function parseAnnotation(row) {
           }
       }
   }
-  var text = row.text ? row.text : '';
-  var tags = row.tags;
+  let text = row.text ? row.text : '';
+  let tags = row.tags;
   try {
       title = row.document.title;
       if (typeof title === 'object') {
@@ -235,8 +252,8 @@ function parseAnnotation(row) {
   catch (e) {
       title = url;
   }
-  var isReply = refs.length > 0;
-  var isPagenote = row.target && !row.target[0].hasOwnProperty('selector');
+  let isReply = refs.length > 0;
+  let isPagenote = row.target && !row.target[0].hasOwnProperty('selector');
   let r = {
       id: id,
       url: url,
@@ -256,12 +273,12 @@ function parseAnnotation(row) {
 }
 
 function parseSelectors(target) {
-  var parsedSelectors = {};
-  var firstTarget = target[0];
+  let parsedSelectors = {};
+  let firstTarget = target[0];
   if (firstTarget) {
-      var selectors = firstTarget.selector;
+      let selectors = firstTarget.selector;
       if (selectors) {
-          var textQuote = selectors.filter(function (x) {
+          let textQuote = selectors.filter(function (x) {
               return x.type === 'TextQuoteSelector';
           });
           if (textQuote.length) {
@@ -271,7 +288,7 @@ function parseSelectors(target) {
                   suffix: textQuote[0].suffix
               };
           }
-          var textPosition = selectors.filter(function (x) {
+          let textPosition = selectors.filter(function (x) {
               return x.type === 'TextPositionSelector';
           });
           if (textPosition.length) {
