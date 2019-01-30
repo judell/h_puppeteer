@@ -8,12 +8,13 @@ const anchoredHighlights = {}
 
 const testUrls = [
   // 'http://jonudell.net/h/ee12.pdf',
-   'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
+  //  'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
   // 'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
   // 'https://www.jyu.fi/edu/laitokset/okl/koulutusala/vkluoko/tietopankki/tutkimusta/viittomakielinen_juhlajulkaisu_nettiversio.pdf', // 404, https://github.com/hypothesis/browser-extension/issues/12
   // 'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338
   // 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0183175', // not a pdf, https://github.com/hypothesis/client/issues/558
- // 'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
+  // 'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
+  'https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf',
 ]
 
 function delay(seconds) {
@@ -62,7 +63,7 @@ async function runPdfTest(testUrl) {
 
   //convert apiResults to expected highlights
   for (let i = 0, anno; i < apiResults.length; i++) {
-     anno = apiResults[i].anno;
+     anno = apiResults[i].anno
      apiHighlights[anno.id] = anno.quote
   }
   
@@ -77,31 +78,30 @@ async function runPdfTest(testUrl) {
     ]
   })
 
-  await waitSeconds(2) // give extension time to load
+  await waitSeconds(5) // give extension time to load
 
   let pages = await browser.pages()    
   let page = pages[1] // 0 is the about page, 1 is the welcome page with h extension loaded
   const client = await page.target().createCDPSession()
   await client.send('Page.navigate', { url: testUrl })
-  await waitSeconds(5)
+  await waitSeconds(10)
   const pdfPageCount = await page.evaluate( () => {    let _pdfPages = Array.from(document.querySelectorAll('.page'))
     return Promise.resolve(_pdfPages.length)
   })
 
-  await waitSeconds(pdfPageCount/25)
-  //await waitSeconds(20)
-
   let ids = Object.keys(apiHighlights)
 
   for (let i = 0; i < ids.length; i++)  {
+
+    apiResult = apiResults[i]
 
     let id = ids[i]
     console.log(`working on ${id}`)
 
     let searchText = apiHighlights[id]
 
-    let anchored = await page.evaluate( (id, searchText, apiHighlightsq) => {
-      console.log(`evaluating ${id}, ${searchText} at ${Date.now()/1000}`)
+    let anchored = await page.evaluate( (id, searchText, apiHighlights, pdfPageCount) => {
+      console.log(`evaluating id ${id}, pdfPageCount ${pdfPageCount}, searchText ${searchText} at ${Date.now()/1000}`)
       async function waitSeconds(seconds) {
         function delay(seconds) {
           return new Promise( resolve => setTimeout(resolve, seconds * 1000))
@@ -111,11 +111,10 @@ async function runPdfTest(testUrl) {
       let findInput = document.getElementById('findInput')
       findInput.value = searchText
       PDFViewerApplication.findBar.dispatchEvent('')
-      return waitSeconds(3)
+      return waitSeconds(4)
         .then ( _ => {
           let highlights = Array.from(document.querySelectorAll(`.h_${id}`))
           let highlight = highlights[0]
-          console.log(`id: ${id}, highlight, ${JSON.stringify(highlight)}, highlights ${JSON.stringify(highlights)}`)
           try {
             console.log(`search for ${id} done, now click at ${Date.now()/1000}`)
             highlight.click()
@@ -127,19 +126,20 @@ async function runPdfTest(testUrl) {
             let _anchoredHighlight = ''
 
             for (let i = 0, hl; i < highlights.length; i++ ) {
-              // ids are sent from the sidebar, and added to the classname by annotator, 
-              // in order to coalesce highlights that span dom nodes
               hl = highlights[i]
-              console.log(`highlight ${JSON.stringify(hl)}`)
               let apiHighlight = apiHighlights[id] 
               _anchoredHighlight += hl.text
               console.log(`apiHighlight ${apiHighlight}, anchoredHighlight ${_anchoredHighlight}`)
               if ( _anchoredHighlight === apiHighlight && ! anchored[id]) {
                 anchored[id] = _anchoredHighlight
-                console.log(`continuing`)
+                console.log('found exact match')
                 continue
               } 
-              //console.log(`returning anchored[${id}] ${JSON.stringify(anchored[id])}`)
+              if (! anchored[id] && i == highlights.length-1) {
+                anchored[id] = _anchoredHighlight
+                console.log('found fuzzy match')
+              }
+
             }
             return Promise.resolve(anchored)
           } catch(e) {
@@ -147,7 +147,7 @@ async function runPdfTest(testUrl) {
             return Promise.resolve(e)
           }
         })
-    }, id, searchText, apiHighlights, anchoredHighlights)
+    }, id, searchText, apiHighlights, pdfPageCount)
     console.log(`anchored ${anchored}`)
     anchoredHighlights[id] = anchored[id]
   }
