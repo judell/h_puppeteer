@@ -5,77 +5,72 @@ const fs = require('fs')
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const apiHighlights = {}
-const anchoredHighlights = {} 
+const anchoredHighlights = {}
 
 const testUrls = [
-  // 'http://jonudell.net/h/ee12.pdf',
-   'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
-  // 'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
-  // 'https://www.jyu.fi/edu/laitokset/okl/koulutusala/vkluoko/tietopankki/tutkimusta/viittomakielinen_juhlajulkaisu_nettiversio.pdf', // 404, https://github.com/hypothesis/browser-extension/issues/12
-  // 'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338
-  // 'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0183175', // not a pdf, https://github.com/hypothesis/client/issues/558
-  // 'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
-  /*
+  'http://jonudell.net/h/ee12.pdf',
+  'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
+  'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
+  'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338
+  'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
   'https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf',
   'http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly-and-Rochberg-Halton-1981-The-Meaning-of-Things-Domestic-Symbols-and-the-Self.pdf',
   'https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf',
   'http://download.krone.at/pdf/ceta.pdf',
   'https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf',
   'https://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf'
-  */
 ]
 
-function delay(seconds) {
-  return new Promise( resolve => setTimeout(resolve, seconds * 1000))
+async function waitSeconds(seconds) {
+  function delay(seconds) {
+    return new Promise(resolve => setTimeout(resolve, seconds * 1000))
+  }
+  await delay(seconds)
 }
 
-async function waitSeconds(seconds) {
-  await delay(seconds)
-  }
-
 async function callSearchApi(testUrl) {
-    return new Promise( (resolve, reject) => {
-      let apiUrl = `https://hypothes.is/api/search?limit=200&uri=${testUrl}`
-      let data = ''
-      https.get(apiUrl, (resp) => {
-        resp.on('data', (chunk) => {
-          data += chunk;
-        })
-        resp.on('end', () => {
-          resolve(data)
-        })
-        resp.on('error', () => {
-          reject(e)
-        })
+  return new Promise((resolve, reject) => {
+    let apiUrl = `https://hypothes.is/api/search?limit=200&uri=${testUrl}`
+    let data = ''
+    https.get(apiUrl, (resp) => {
+      resp.on('data', (chunk) => {
+        data += chunk;
+      })
+      resp.on('end', () => {
+        resolve(data)
+      })
+      resp.on('error', () => {
+        reject(e)
       })
     })
-  }
+  })
+}
 
 async function runPdfTest(testUrl) {
 
   // gather results from the api
-  let apiResults = JSON.parse(await(callSearchApi(testUrl)))
-  let apiRows = apiResults.rows.filter( row => {
+  let apiResults = JSON.parse(await (callSearchApi(testUrl)))
+  let apiRows = apiResults.rows.filter(row => {
     selectors = parseSelectors(row.target)
     return Object.keys(selectors).length // filter out page notes
   })
-  apiResults = apiRows.map(row => { 
+  apiResults = apiRows.map(row => {
     let anno = parseAnnotation(row)
     let selectors = parseSelectors(row.target)
     let textPosition = selectors.TextPosition
-    return {id: row.id, anno: anno, start: textPosition.start} 
+    return { id: row.id, anno: anno, start: textPosition.start }
   })
-  apiResults.sort( (a, b) => {  // put in document order
+  apiResults.sort((a, b) => {  // put in document order
     return a.start - b.start
   })
 
   //convert apiResults to expected highlights
   for (let i = 0, anno; i < apiResults.length; i++) {
-     anno = apiResults[i].anno
-     apiHighlights[anno.id] = anno.quote
+    anno = apiResults[i].anno
+    apiHighlights[anno.id] = anno.quote
   }
-  
-  let browser = await  puppeteer.launch({
+
+  let browser = await puppeteer.launch({
     headless: false, // extensions only supported in full chrome.
     args: [
       `--disable-extensions-except=${CRX_PATH}`,
@@ -88,20 +83,21 @@ async function runPdfTest(testUrl) {
 
   await waitSeconds(5) // give extension time to load
 
-  let pages = await browser.pages()    
+  let pages = await browser.pages()
   let page = pages[1] // 0 is the about page, 1 is the welcome page with h extension loaded
   const client = await page.target().createCDPSession()
   await client.send('Page.navigate', { url: testUrl })
   let seconds = 20
   console.log(`waiting ${seconds}`)
   await waitSeconds(seconds)
-  const pdfPageCount = await page.evaluate( () => {    let _pdfPages = Array.from(document.querySelectorAll('.page'))
+  const pdfPageCount = await page.evaluate(() => {
+    let _pdfPages = Array.from(document.querySelectorAll('.page'))
     return Promise.resolve(_pdfPages.length)
   })
 
   let ids = Object.keys(apiHighlights)
 
-  for (let i = 0; i < ids.length; i++)  {
+  for (let i = 0; i < ids.length; i++) {
 
     apiResult = apiResults[i]
 
@@ -110,52 +106,52 @@ async function runPdfTest(testUrl) {
 
     let searchText = apiHighlights[id]
 
-    let anchored = await page.evaluate( (id, searchText, apiHighlights, pdfPageCount) => {
+    let anchored = await page.evaluate((id, searchText, apiHighlights, pdfPageCount) => {
 
-      console.log(`evaluating id ${id}, pdfPageCount ${pdfPageCount}, searchText ${searchText} at ${Date.now()/1000}`)
+      console.log(`evaluating id ${id}, pdfPageCount ${pdfPageCount}, searchText ${searchText} at ${Date.now() / 1000}`)
       async function waitSeconds(seconds) {
         function delay(seconds) {
-          return new Promise( resolve => setTimeout(resolve, seconds * 1000))
+          return new Promise(resolve => setTimeout(resolve, seconds * 1000))
         }
         await delay(seconds)
-      }      
+      }
       let findInput = document.getElementById('findInput')
       findInput.value = searchText
       PDFViewerApplication.findBar.dispatchEvent('')
       let seconds = 10
-      console.log (`waiting ${seconds}`)
+      console.log(`waiting ${seconds}`)
       return waitSeconds(seconds)
-        .then ( _ => {
+        .then(_ => {
           let highlights = Array.from(document.querySelectorAll(`.h_${id}`))
           let highlight = highlights[0]
           try {
-            console.log(`search for ${id} done, now click at ${Date.now()/1000}`)
+            console.log(`search for ${id} done, now click at ${Date.now() / 1000}`)
             highlight.click()
-            console.log(`gather for ${id} at ${Date.now()/1000}`)
-            highlights = highlights.map(hl => {return {text: hl.innerText}})
+            console.log(`gather for ${id} at ${Date.now() / 1000}`)
+            highlights = highlights.map(hl => { return { text: hl.innerText } })
             console.log(`highlights ${JSON.stringify(highlights)}`)
 
             const anchored = {}
             let _anchoredHighlight = ''
 
-            for (let i = 0, hl; i < highlights.length; i++ ) {
+            for (let i = 0, hl; i < highlights.length; i++) {
               hl = highlights[i]
-              let apiHighlight = apiHighlights[id] 
+              let apiHighlight = apiHighlights[id]
               _anchoredHighlight += hl.text
               //console.log(`apiHighlight ${apiHighlight}, anchoredHighlight ${_anchoredHighlight}`)
-              if ( _anchoredHighlight === apiHighlight && ! anchored[id]) {
+              if (_anchoredHighlight === apiHighlight && !anchored[id]) {
                 anchored[id] = _anchoredHighlight
                 console.log('found exact match')
                 continue
-              } 
-              if (! anchored[id] && i == highlights.length-1) {
+              }
+              if (!anchored[id] && i == highlights.length - 1) {
                 anchored[id] = _anchoredHighlight
                 console.log('found fuzzy match')
               }
 
             }
             return Promise.resolve(anchored)
-          } catch(e) {
+          } catch (e) {
             console.error(id, searchText, e)
             return Promise.resolve(e)
           }
@@ -166,12 +162,12 @@ async function runPdfTest(testUrl) {
   }
 
   browser.close()
-  return {testUrl: testUrl, pdfPageCount: pdfPageCount, apiHighlights: apiHighlights, anchoredHighlights: anchoredHighlights}
+  return { testUrl: testUrl, pdfPageCount: pdfPageCount, apiHighlights: apiHighlights, anchoredHighlights: anchoredHighlights }
 }
 
 async function runTestOnAllPdfUrls() {
   let results = []
-  for ( let i=0; i<testUrls.length; i++) {
+  for (let i = 0; i < testUrls.length; i++) {
     let r = await runPdfTest(testUrls[i])
     results.push(r)
   }
@@ -192,13 +188,13 @@ runTestOnAllPdfUrls()
       expectedIds.forEach(id => {
         let expectedHighlight = expectedHighlights[id]
         let anchoredHighlight = anchoredHighlights.hasOwnProperty(id) ? anchoredHighlights[id] : null
-        if (! anchoredHighlight) {
-            anchorOutcome = 'none'
-          } else if (expectedHighlight === anchoredHighlight) {
-            anchorOutcome = 'exact'
-          } else {
-            anchorOutcome = 'fuzzy'
-          }
+        if (!anchoredHighlight) {
+          anchorOutcome = 'none'
+        } else if (expectedHighlight === anchoredHighlight) {
+          anchorOutcome = 'exact'
+        } else {
+          anchorOutcome = 'fuzzy'
+        }
         let test = (id in anchoredHighlights && expectedHighlight === anchoredHighlight)
         if (test) {
           summary[id] = { expected: expectedHighlight, anchored: true, anchorOutcome: anchorOutcome }
@@ -207,10 +203,10 @@ runTestOnAllPdfUrls()
         }
       })
       summary = `{ ${JSON.stringify(summary, null, 2)} }`
-       console.log(summary)
+      console.log(summary)
       fs.writeFile(`${key}.json`, summary, err => {
-        if(err) {
-            return console.log(err);
+        if (err) {
+          return console.log(err);
         }
       })
     })
@@ -228,46 +224,46 @@ function parseAnnotation(row) {
   let user = row.user.replace('acct:', '').replace('@hypothes.is', '');
   let quote = '';
   if (row.target && row.target.length) {
-      let selectors = row.target[0].selector;
-      if (selectors) {
-          for (let i = 0; i < selectors.length; i++) {
-              let selector = selectors[i];
-              if (selector.type === 'TextQuoteSelector') {
-                  quote = selector.exact;
-              }
-          }
+    let selectors = row.target[0].selector;
+    if (selectors) {
+      for (let i = 0; i < selectors.length; i++) {
+        let selector = selectors[i];
+        if (selector.type === 'TextQuoteSelector') {
+          quote = selector.exact;
+        }
       }
+    }
   }
   let text = row.text ? row.text : '';
   let tags = row.tags;
   try {
-      title = row.document.title;
-      if (typeof title === 'object') {
-          title = title[0];
-      }
-      else {
-          title = url;
-      }
+    title = row.document.title;
+    if (typeof title === 'object') {
+      title = title[0];
+    }
+    else {
+      title = url;
+    }
   }
   catch (e) {
-      title = url;
+    title = url;
   }
   let isReply = refs.length > 0;
   let isPagenote = row.target && !row.target[0].hasOwnProperty('selector');
   let r = {
-      id: id,
-      url: url,
-      updated: updated,
-      title: title,
-      refs: refs,
-      isReply: isReply,
-      isPagenote: isPagenote,
-      user: user,
-      text: text,
-      quote: quote,
-      tags: tags,
-      group: group,
-      target: row.target
+    id: id,
+    url: url,
+    updated: updated,
+    title: title,
+    refs: refs,
+    isReply: isReply,
+    isPagenote: isPagenote,
+    user: user,
+    text: text,
+    quote: quote,
+    tags: tags,
+    group: group,
+    target: row.target
   };
   return r;
 }
@@ -276,28 +272,28 @@ function parseSelectors(target) {
   let parsedSelectors = {};
   let firstTarget = target[0];
   if (firstTarget) {
-      let selectors = firstTarget.selector;
-      if (selectors) {
-          let textQuote = selectors.filter(function (x) {
-              return x.type === 'TextQuoteSelector';
-          });
-          if (textQuote.length) {
-              parsedSelectors['TextQuote'] = {
-                  exact: textQuote[0].exact,
-                  prefix: textQuote[0].prefix,
-                  suffix: textQuote[0].suffix
-              };
-          }
-          let textPosition = selectors.filter(function (x) {
-              return x.type === 'TextPositionSelector';
-          });
-          if (textPosition.length) {
-              parsedSelectors['TextPosition'] = {
-                  start: textPosition[0].start,
-                  end: textPosition[0].end
-              };
-          }
+    let selectors = firstTarget.selector;
+    if (selectors) {
+      let textQuote = selectors.filter(function (x) {
+        return x.type === 'TextQuoteSelector';
+      });
+      if (textQuote.length) {
+        parsedSelectors['TextQuote'] = {
+          exact: textQuote[0].exact,
+          prefix: textQuote[0].prefix,
+          suffix: textQuote[0].suffix
+        };
       }
+      let textPosition = selectors.filter(function (x) {
+        return x.type === 'TextPositionSelector';
+      });
+      if (textPosition.length) {
+        parsedSelectors['TextPosition'] = {
+          start: textPosition[0].start,
+          end: textPosition[0].end
+        };
+      }
+    }
   }
   return parsedSelectors
 }
