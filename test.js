@@ -49,7 +49,7 @@ async function callSearchApi(testUrl) {
 async function runPdfTest(testUrl) {
 
   // gather results from the api
-  let apiResults = await getApiResults()
+  let apiResults = await getApiResults(testUrl)
 
   //convert apiResults to expected highlights
   for (let i = 0, anno; i < apiResults.length; i++) {
@@ -84,6 +84,7 @@ async function runPdfTest(testUrl) {
 
   let ids = Object.keys(apiHighlights)
 
+  // step through the ids of annotations expected to anchor
   for (let i = 0; i < ids.length; i++) {
 
     apiResult = apiResults[i]
@@ -91,9 +92,10 @@ async function runPdfTest(testUrl) {
     let id = ids[i]
     console.log(`working on ${id}`)
 
+    // search for the highlight the api says should be there
     let searchText = apiHighlights[id]
 
-    let anchored = await page.evaluate((id, searchText, apiHighlights, pdfPageCount) => {
+    let anchored = await page.evaluate((id, searchText, apiHighlights, pdfPageCount) => {  // this block runs in the browser
 
       console.log(`evaluating id ${id}, pdfPageCount ${pdfPageCount}, searchText ${searchText} at ${Date.now() / 1000}`)
       async function waitSeconds(seconds) {
@@ -102,14 +104,14 @@ async function runPdfTest(testUrl) {
         }
         await delay(seconds)
       }
-      let findInput = document.getElementById('findInput')
-      findInput.value = searchText
-      PDFViewerApplication.findBar.dispatchEvent('')
-      let seconds = 10
+      let findInput = document.getElementById('findInput')  // get the pdfjs search input box
+      findInput.value = searchText                          // put in the annotation's exact quote
+      PDFViewerApplication.findBar.dispatchEvent('')        // tell pdfjs to find it
+      let seconds = 10                                      // give that time to happen
       console.log(`waiting ${seconds}`)
       return waitSeconds(seconds)
         .then( _ => {
-          let highlights = Array.from(document.querySelectorAll(`.h_${id}`))
+          let highlights = Array.from(document.querySelectorAll(`.h_${id}`))  // look for ids as decorated by tweaked extension
           let highlight = highlights[0]
           try {
             console.log(`search for ${id} done, now click at ${Date.now() / 1000}`)
@@ -118,20 +120,18 @@ async function runPdfTest(testUrl) {
             highlights = highlights.map(hl => { return { text: hl.innerText } })
             console.log(`highlights ${JSON.stringify(highlights)}`)
 
-            const anchored = {}
-            let _anchoredHighlight = ''
-
+            const anchored = {} // highlights that span multiple nodes accrue, to the common `.h_${id}` annotation id, here
+            let _anchoredHighlight = '' // accumulator
+            
             for (let i = 0, hl; i < highlights.length; i++) {
               hl = highlights[i]
-              let apiHighlight = apiHighlights[id]
-              _anchoredHighlight += hl.text
-              //console.log(`apiHighlight ${apiHighlight}, anchoredHighlight ${_anchoredHighlight}`)
-              if (_anchoredHighlight === apiHighlight && !anchored[id]) {
+              _anchoredHighlight += hl.text  // accumulate highlight text in the document
+              if (_anchoredHighlight === apiHighlights[id] && !anchored[id]) {  // exactly equal to api result?
                 anchored[id] = _anchoredHighlight
                 console.log('found exact match')
                 continue
               }
-              if (!anchored[id] && i == highlights.length - 1) {
+              if (!anchored[id] && i == highlights.length - 1) {  // something matched
                 anchored[id] = _anchoredHighlight
                 console.log('found fuzzy match')
               }
@@ -150,22 +150,22 @@ async function runPdfTest(testUrl) {
   browser.close()
   return { testUrl: testUrl, pdfPageCount: pdfPageCount, apiHighlights: apiHighlights, anchoredHighlights: anchoredHighlights }
 
-  async function getApiResults() {
-    let apiResults = JSON.parse(await (callSearchApi(testUrl)));
+  async function getApiResults(testUrl) {
+    let apiResults = JSON.parse(await (callSearchApi(testUrl)))
     let apiRows = apiResults.rows.filter(row => {
-      selectors = parseSelectors(row.target);
-      return Object.keys(selectors).length; // filter out page notes
-    });
+      let selectors = parseSelectors(row.target)
+      return Object.keys(selectors).length // filter out page notes
+    })
     apiResults = apiRows.map(row => {
-      let anno = parseAnnotation(row);
-      let selectors = parseSelectors(row.target);
-      let textPosition = selectors.TextPosition;
-      return { id: row.id, anno: anno, start: textPosition.start };
-    });
-    apiResults.sort((a, b) => {
-      return a.start - b.start;
-    });
-    return apiResults;
+      let anno = parseAnnotation(row)
+      let selectors = parseSelectors(row.target)
+      let textPosition = selectors.TextPosition
+      return { id: row.id, anno: anno, start: textPosition.start }
+    })
+    apiResults.sort((a, b) => {  // put highlights in document order
+      return a.start - b.start
+    })
+    return apiResults
   }
 }
 
