@@ -97,10 +97,9 @@ async function runPdfTest(testUrlIndex, testUrl) {
     console.log(`working on ${id}`)
 
     // search for the highlight the api says should be there
-    let searchText = apiHighlights[id]
 
     let anchored = await page.evaluate((id, apiHighlights, pdfPageCount) => {  // this block runs in the browser
-
+      let searchText = apiHighlights[id]
       console.log(`evaluating id ${id}, pdfPageCount ${pdfPageCount}, searchText ${searchText} at ${Date.now() / 1000}`)
       async function waitSeconds(seconds) {
         function delay(seconds) {
@@ -109,7 +108,6 @@ async function runPdfTest(testUrlIndex, testUrl) {
         await delay(seconds)
       }
       let findInput = document.getElementById('findInput')  // get the pdfjs search input box
-      let searchText = apiHighlights[id]
       findInput.value = searchText                          // put in the annotation's exact quote
       PDFViewerApplication.findBar.dispatchEvent('')        // tell pdfjs to find it
       let seconds = 10                                      // give that time to happen
@@ -125,13 +123,14 @@ async function runPdfTest(testUrlIndex, testUrl) {
             highlights = highlights.map(hl => { return { text: hl.innerText } })
             console.log(`highlights ${JSON.stringify(highlights)}`)
 
-            const anchored = {} // highlights that span multiple nodes accrue, to the common `.h_${id}` annotation id, here
-            
+            const anchored = {} 
+            anchored[id] = {
+              anchoredHighlight: '',
+              outcome: null
+            }
+
             for (let i = 0, hl; i < highlights.length; i++) {
-              anchored[id] = {
-                anchoredHighlight: '',
-                outcome: null
-              }
+
               hl = highlights[i]
               if (hl.text === 'Loading annotations…') {
                 console.log(`got 'Loading annotations…', maybe orphan`)
@@ -140,10 +139,10 @@ async function runPdfTest(testUrlIndex, testUrl) {
                 break
               }
              anchored[id].anchoredHighlight += hl.text  // accumulate highlight text in the document
-              if (anchored[id].anchoredHighlight === apiHighlights[id] && !anchored[id]) {  // exactly equal to api result?
+              if (anchored[id].anchoredHighlight === apiHighlights[id]) {  // exactly equal to api result?
                 anchored[id].outcome = 'exact'
                 console.log('found exact match')
-                continue
+                break
               }
               if (i == highlights.length - 1) {  // something matched
                 anchored[id].outcome = 'fuzzy'
@@ -152,11 +151,10 @@ async function runPdfTest(testUrlIndex, testUrl) {
             }
             return Promise.resolve(anchored)
           } catch (e) {
-            console.error(id, searchText, e)
-            return Promise.resolve(e)
+            throw (e)
           }
         })
-    }, id, searchText, apiHighlights, pdfPageCount)
+    }, id, apiHighlights, pdfPageCount)
     console.log(`anchored ${JSON.stringify(anchored)}`)
     results[id] = anchored[id]
   }
@@ -210,6 +208,7 @@ function digestPdfResults(results) {
     let result = results[key];
     console.log(`${result.testUrl} (pages: ${result.pdfPageCount})`)
     let summary = {}
+    let expectedIds = Object.keys(result.results)
     expectedIds.forEach(id => {
       summary[id] = result
     })
