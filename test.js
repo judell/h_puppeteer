@@ -48,7 +48,7 @@ async function callSearchApi(testUrl) {
 async function runPdfTest(testUrlIndex, testUrl) {
 
   const apiHighlights = {}
-  const anchoredHighlights = {}  
+  const results = {}  
 
   // gather results from the api
   let apiResults = await getApiResults(testUrl)
@@ -99,7 +99,7 @@ async function runPdfTest(testUrlIndex, testUrl) {
     // search for the highlight the api says should be there
     let searchText = apiHighlights[id]
 
-    let anchored = await page.evaluate((id, searchText, apiHighlights, pdfPageCount) => {  // this block runs in the browser
+    let anchored = await page.evaluate((id, apiHighlights, pdfPageCount) => {  // this block runs in the browser
 
       console.log(`evaluating id ${id}, pdfPageCount ${pdfPageCount}, searchText ${searchText} at ${Date.now() / 1000}`)
       async function waitSeconds(seconds) {
@@ -109,6 +109,7 @@ async function runPdfTest(testUrlIndex, testUrl) {
         await delay(seconds)
       }
       let findInput = document.getElementById('findInput')  // get the pdfjs search input box
+      let searchText = apiHighlights[id]
       findInput.value = searchText                          // put in the annotation's exact quote
       PDFViewerApplication.findBar.dispatchEvent('')        // tell pdfjs to find it
       let seconds = 10                                      // give that time to happen
@@ -125,23 +126,27 @@ async function runPdfTest(testUrlIndex, testUrl) {
             console.log(`highlights ${JSON.stringify(highlights)}`)
 
             const anchored = {} // highlights that span multiple nodes accrue, to the common `.h_${id}` annotation id, here
-            let _anchoredHighlight = '' // accumulator
             
             for (let i = 0, hl; i < highlights.length; i++) {
+              anchored[id] = {
+                anchoredHighlight: '',
+                outcome: null
+              }
               hl = highlights[i]
               if (hl.text === 'Loading annotations…') {
                 console.log(`got 'Loading annotations…', maybe orphan`)
-                anchored[id] = 'maybe orphan?'
+                anchored[id].anchoredHighlight = hl.text
+                anchored[id].outcome = 'orphan'
                 break
               }
-              _anchoredHighlight += hl.text  // accumulate highlight text in the document
-              if (_anchoredHighlight === apiHighlights[id] && !anchored[id]) {  // exactly equal to api result?
-                anchored[id] = _anchoredHighlight
+             anchored[id].anchoredHighlight += hl.text  // accumulate highlight text in the document
+              if (anchored[id].anchoredHighlight === apiHighlights[id] && !anchored[id]) {  // exactly equal to api result?
+                anchored[id].outcome = 'exact'
                 console.log('found exact match')
                 continue
               }
-              if (!anchored[id] && i == highlights.length - 1) {  // something matched
-                anchored[id] = _anchoredHighlight
+              if (i == highlights.length - 1) {  // something matched
+                anchored[id].outcome = 'fuzzy'
                 console.log('found fuzzy match')
               }
             }
@@ -153,7 +158,7 @@ async function runPdfTest(testUrlIndex, testUrl) {
         })
     }, id, searchText, apiHighlights, pdfPageCount)
     console.log(`anchored ${JSON.stringify(anchored)}`)
-    anchoredHighlights[id] = anchored[id]
+    results[id] = anchored[id]
   }
 
   await browser.close()
@@ -162,7 +167,7 @@ async function runPdfTest(testUrlIndex, testUrl) {
     testUrl: testUrl, 
     pdfPageCount: pdfPageCount, 
     apiHighlights: apiHighlights, 
-    anchoredHighlights: anchoredHighlights 
+    results: results
   }
 
   async function getApiResults(testUrl) {
@@ -184,7 +189,6 @@ async function runPdfTest(testUrlIndex, testUrl) {
   }
 }
 
-
 async function runTestOnAllPdfUrls() {
   let results = []
   for (let i = 0; i < testUrls.length; i++) {
@@ -203,40 +207,11 @@ function digestPdfResults(results) {
   let summary = {};
   let keys = Object.keys(results);
   keys.forEach(key => {
-    let obj = results[key];
-    console.log(`${obj.testUrl} (pages: ${obj.pdfPageCount})`)
-    let expectedHls = obj.apiHighlights
-    let anchoredHls = obj.anchoredHighlights
-    let expectedIds = Object.keys(expectedHls)
+    let result = results[key];
+    console.log(`${result.testUrl} (pages: ${result.pdfPageCount})`)
     let summary = {}
     expectedIds.forEach(id => {
-      let expectedHl = expectedHls[id]
-      let anchoredHl = anchoredHls.hasOwnProperty(id) ? anchoredHls[id] : null
-      let anchorOutcome
-      if (!anchoredHl) {
-        anchorOutcome = 'none'
-      }
-      else if (expectedHl === anchoredHl) {
-        anchorOutcome = 'exact'
-      }
-      else {
-        anchorOutcome = 'fuzzy'
-      }
-      let test = (id in anchoredHls && expectedHl === anchoredHl)
-      if (test) {
-        summary[id] = { 
-          expected: expectedHl, 
-          anchored: true, 
-          anchorOutcome: anchorOutcome 
-        }
-      }
-      else {
-        summary[id] = { 
-          expected: expectedHl, 
-          anchored: anchoredHl, 
-          anchorOutcome: anchorOutcome 
-        }
-      }
+      summary[id] = result
     })
     summary = `{ ${JSON.stringify(summary, null, 2)} }`
     console.log(summary);
