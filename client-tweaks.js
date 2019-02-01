@@ -1,3 +1,9 @@
+// serving the tweaked client from http://hyp.jonudell.info:3001/hypothesis
+
+// bookmarklet for firefox
+
+javascript:(function(){window.hypothesisConfig=function(){return{showHighlights:true,appType:'bookmarklet'};};var d=document,s=d.createElement('script');s.setAttribute('src','http://hyp.jonudell.info:3001/hypothesis');d.body.appendChild(s)})();
+
 // sidebar
 
 function formatAnnot(ann) {
@@ -12,27 +18,32 @@ function formatAnnot(ann) {
   };
 }
 
-// annotator
+// this version aims to make the pageIds available so highlights can be pagemapped and traversed in proper order
+
+// highlighter/dom-wrap-highlighter/index.coffee
 
 exports.highlightRange = function(normedRange, cssClass, id) {
+  console.log(`id ${id}`)
   var hl, nodes, white;
   if (cssClass == null) {
     cssClass = 'annotator-hl';
   }
   white = /^\s*$/;
-  hl = $(`<hypothesis-highlight class="${cssClass} h_${id}"></hypothesis-highlight>`);
   nodes = $(normedRange.textNodes()).filter(function(i) {
     return !white.test(this.nodeValue);
   });
-  let firstNode = Array.from(nodes)[0]
-  let page = firstNode.parentElement.closest('.page')
-  let pageId = page.id ? page.id : 'pageContainer1'
-//  console.log(firstNode, page, page.id)
-  hl = $(`<hypothesis-highlight pageId="${page.id}" class="${cssClass} ${id}"></hypothesis-highlight>`); // add the id
+  try {
+    let pageId = document.querySelectorAll('hypothesis-highlight')[0].parentElement.closest('.page').id
+    hl = $(`<hypothesis-highlight pageId="${pageId}" class="${cssClass} h_${id}"></hypothesis-highlight>`);
+    console.log(hl)
+  } catch (e) {
+    hl = $(`<hypothesis-highlight class="${cssClass} h_${id}"></hypothesis-highlight>`);
+    console.error(e)
+  }
   return nodes.wrap(hl).parent().toArray();
 };
 
-
+// guest.coffee
 
 highlight = function(anchor) {
   if (anchor.range == null) {

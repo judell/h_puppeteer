@@ -5,7 +5,8 @@ const fs = require('fs')
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const testUrls = [
-  //'http://jonudell.net/h/ee12.pdf',
+  'http://jonudell.net/h/ee12.pdf',
+  /*
   //'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
   'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
   'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338
@@ -16,6 +17,7 @@ const testUrls = [
   'http://download.krone.at/pdf/ceta.pdf',
   'https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf',
   'https://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf'
+  */
 ]
 
 async function waitSeconds(seconds) {
@@ -43,7 +45,7 @@ async function callSearchApi(testUrl) {
   })
 }
 
-async function runPdfTest(testUrl) {
+async function runPdfTest(testUrlIndex, testUrl) {
 
   const apiHighlights = {}
   const anchoredHighlights = {}  
@@ -83,6 +85,8 @@ async function runPdfTest(testUrl) {
   })
 
   let ids = Object.keys(apiHighlights)
+
+  createFirefoxScript(testUrlIndex, testUrl, pdfPageCount, ids, apiHighlights)
 
   // step through the ids of annotations expected to anchor
   for (let i = 0; i < ids.length; i++) {
@@ -153,7 +157,13 @@ async function runPdfTest(testUrl) {
   }
 
   await browser.close()
-  return { testUrl: testUrl, pdfPageCount: pdfPageCount, apiHighlights: apiHighlights, anchoredHighlights: anchoredHighlights }
+  
+  return { 
+    testUrl: testUrl, 
+    pdfPageCount: pdfPageCount, 
+    apiHighlights: apiHighlights, 
+    anchoredHighlights: anchoredHighlights 
+  }
 
   async function getApiResults(testUrl) {
     let apiResults = JSON.parse(await (callSearchApi(testUrl)))
@@ -174,10 +184,11 @@ async function runPdfTest(testUrl) {
   }
 }
 
+
 async function runTestOnAllPdfUrls() {
   let results = []
   for (let i = 0; i < testUrls.length; i++) {
-    let r = await runPdfTest(testUrls[i])
+    let r = await runPdfTest(i, testUrls[i])
     results.push(r)
   }
   return Promise.resolve(results)
@@ -193,40 +204,63 @@ function digestPdfResults(results) {
   let keys = Object.keys(results);
   keys.forEach(key => {
     let obj = results[key];
-    console.log(`${obj.testUrl} (pages: ${obj.pdfPageCount})`);
-    let expectedHls = obj.apiHighlights;
-    let anchoredHls = obj.anchoredHighlights;
-    let expectedIds = Object.keys(expectedHls);
-    let summary = {};
+    console.log(`${obj.testUrl} (pages: ${obj.pdfPageCount})`)
+    let expectedHls = obj.apiHighlights
+    let anchoredHls = obj.anchoredHighlights
+    let expectedIds = Object.keys(expectedHls)
+    let summary = {}
     expectedIds.forEach(id => {
-      let expectedHl = expectedHls[id];
-      let anchoredHl = anchoredHls.hasOwnProperty(id) ? anchoredHls[id] : null;
-      let anchorOutcome;
+      let expectedHl = expectedHls[id]
+      let anchoredHl = anchoredHls.hasOwnProperty(id) ? anchoredHls[id] : null
+      let anchorOutcome
       if (!anchoredHl) {
-        anchorOutcome = 'none';
+        anchorOutcome = 'none'
       }
       else if (expectedHl === anchoredHl) {
-        anchorOutcome = 'exact';
+        anchorOutcome = 'exact'
       }
       else {
-        anchorOutcome = 'fuzzy';
+        anchorOutcome = 'fuzzy'
       }
-      let test = (id in anchoredHls && expectedHl === anchoredHl);
+      let test = (id in anchoredHls && expectedHl === anchoredHl)
       if (test) {
-        summary[id] = { expected: expectedHl, anchored: true, anchorOutcome: anchorOutcome };
+        summary[id] = { 
+          expected: expectedHl, 
+          anchored: true, 
+          anchorOutcome: anchorOutcome 
+        }
       }
       else {
-        summary[id] = { expected: expectedHl, anchored: anchoredHl, anchorOutcome: anchorOutcome };
+        summary[id] = { 
+          expected: expectedHl, 
+          anchored: anchoredHl, 
+          anchorOutcome: anchorOutcome 
+        }
       }
-    });
-    summary = `{ ${JSON.stringify(summary, null, 2)} }`;
+    })
+    summary = `{ ${JSON.stringify(summary, null, 2)} }`
     console.log(summary);
     fs.writeFile(`${key}.json`, summary, err => {
-      if (err) {
-        return console.log(err);
-      }
-    });
-  });
+      if (err) throw err
+    })
+  })
+}
+
+function createFirefoxScript(testUrlIndex, testUrl, pdfPageCount, ids, apiHighlights, searchText) {
+  let script
+  fs.readFile('firefoxInject.js', 'utf8', (err, data) => {
+    if (err) throw err
+    script = data
+    script = script.replace('__TEST_URL_INDEX__', testUrlIndex)
+    script = script.replace('__TEST_URL__', `"${testUrl}"`)
+    script = script.replace('__PDF_PAGE_COUNT__', pdfPageCount)
+    script = script.replace('__IDS__', JSON.stringify(ids))
+    script = script.replace('__API_HIGHLIGHTS__', JSON.stringify(apiHighlights))
+    script = script.replace('__SEARCH_TEXT__', `"${searchText}"`)
+    fs.writeFile(`${testUrlIndex}.ff.js`, script, err => {
+      if (err) throw err
+    })
+  })
 }
 
 // from hlib
