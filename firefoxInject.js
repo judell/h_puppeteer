@@ -4,42 +4,46 @@ const pdfPageCount = __PDF_PAGE_COUNT__
 const ids = __IDS__
 const apiHighlights =  __API_HIGHLIGHTS__
 
-async function evaluate(id) {
-  let findInput = document.getElementById('findInput')  // get the pdfjs search input box
-  let searchText = apiHighlights[id]
-  findInput.value = searchText                          // put in the annotation's exact quote
-  PDFViewerApplication.findBar.dispatchEvent('')        // tell pdfjs to find it
-  let seconds = 4                                      // give that time to happen
-  console.log(`waiting ${seconds}`)
-  await waitSeconds(seconds)
-  let highlights = Array.from(document.querySelectorAll(`.h_${id}`))  // look for ids as decorated by tweaked extension
-  let highlight = highlights[0]
-  try {
-    highlight.click()
-    highlights = highlights.map(hl => { return { text: hl.innerText } })
-    let result = {
-      anchoredHighlight: '',
-      outcome: null,
+async function evaluate(pageNumber) {
+
+  let highlights = Array.from(document.querySelectorAll(`.page[data-page-number='${pageNumber}'] .annotator-hl`))
+  console.log(highlights.length, highlights)
+  
+  let results = {}
+
+  for (i = 0; i < highlights.length; i++) {
+
+    let highlight = highlights[i]
+
+    let id = highlight.className.replace('annotator-hl ','').replace('h_','')
+
+    console.log(`id ${id}`)
+
+    if (! results[id]) {
+      results[id] = initResult(id, pageNumber)
     }
-    for (let i = 0, hl; i < highlights.length; i++) {
-      hl = highlights[i]
-      if (hl.text === 'Loading annotations…') {
-        result.anchoredHighlight = hl.text
-        result.outcome = 'orphan'
-        break
-      }
-      result.anchoredHighlight += hl.text  // accumulate highlight text in the document
-      if (result.anchoredHighlight === apiHighlights[id]) {  // exactly equal to api result?
-        result.outcome = 'exact'
-        break
-      }
-      if ( i == highlights.length -1 ) {
-        result.outcome = 'fuzzy'
-      }
-    }
-    return (result)
-  } catch (e) {
-    throw (e)
+
+    results[id].anchoredHighlight += highlight.innerText
+
+  }
+
+  console.log(`resolving page ${pageNumber} with ${JSON.stringify(results)}`)
+  return (Promise.resolve(results))
+}
+
+function goto(pageNumber) {
+    console.log(`.page[data-page-number='${pageNumber}']`)
+    let pageElement = document.querySelector(`.page[data-page-number='${pageNumber}']`)
+    console.log(`pageElement ${pageElement}`)
+    pageElement.scrollIntoView()
+}
+
+function initResult(id, pageNumber) {
+  return {
+    apiHighlight: apiHighlights[id],
+    anchoredHighlight: '',
+    outcome: null,
+    pageNumber: pageNumber
   }
 }
 
@@ -51,13 +55,47 @@ async function waitSeconds(seconds) {
 }
 
 async function main() {
-  let results = []
-  for (let i = 0; i < ids.length; i++) {
-    await waitSeconds(2)
-    let id = ids[i]
-    results.push(await evaluate(id))
+
+ let finalResults = {}
+
+  for (let i = 1; i <= pdfPageCount; i++) {
+    await waitSeconds(1)
+    console.log(`goto page ${i}`)
+    goto(i)
+    await waitSeconds(1)
+    console.log(`evaluate page ${i}`)
+    let results = await evaluate(i)
+    console.log(results)
+    Object.keys(results).forEach(id => {
+      finalResults[id] = results[id]
+    })
   }
-  console.log( results )
+
+  console.log(Object.keys(finalResults).length)  
+  console.log(finalResults)
+
+  allIds.forEach(id => {
+
+    if (! finalResults[id]) {
+      finalResults[id] = initResult(id)
+      finalResults[id].outcome = 'orphan'
+    } else {
+      if (finalResults[id].anchoredHighlight === apiHighlights[id]) {
+        finalResults[id].outcome = 'exact'
+      } else {
+        finalResults[id].outcome = 'fuzzy'
+      }
+    }
+    
+  })
+
+  console.log(Object.keys(finalResults).length)  
+  console.log(finalResults)
+
+  Object.keys(finalResults).forEach(id => {
+    console.log( {id: id, outcome: finalResults[id].outcome} )
+  })
+
 }
 
 main()
