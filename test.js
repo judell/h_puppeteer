@@ -5,9 +5,11 @@ const fs = require('fs')
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const testUrls = [
-  'http://jonudell.net/h/ee12.pdf',
-  /*
+  //'http://jonudell.net/h/ee12.pdf',
+
   //'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
+  'https://arxiv.org/pdf/1606.02960.pdf',
+  /*
   'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
   'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338
   'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
@@ -94,13 +96,13 @@ async function runPdfTest(testUrlIndex, testUrl) {
     apiResult = apiResults[i]
 
     let id = ids[i]
-    console.log(`working on ${id}`)
+    console.log(`working on ${id}, ${apiHighlights[id]}`)
 
     // search for the highlight the api says should be there
 
     let anchored = await page.evaluate((id, apiHighlights, pdfPageCount) => {  // this block runs in the browser
       let searchText = apiHighlights[id]
-      console.log(`evaluating id ${id}, pdfPageCount ${pdfPageCount}, searchText ${searchText} at ${Date.now() / 1000}`)
+      console.log(`evaluating id ${id}, pdfPageCount ${pdfPageCount}, searchText ${searchText}`)
       async function waitSeconds(seconds) {
         function delay(seconds) {
           return new Promise(resolve => setTimeout(resolve, seconds * 1000))
@@ -110,48 +112,60 @@ async function runPdfTest(testUrlIndex, testUrl) {
       let findInput = document.getElementById('findInput')  // get the pdfjs search input box
       findInput.value = searchText                          // put in the annotation's exact quote
       PDFViewerApplication.findBar.dispatchEvent('')        // tell pdfjs to find it
-      let seconds = 10                                      // give that time to happen
+      let seconds = 5                                   // give that time to happen
       console.log(`waiting ${seconds}`)
+      setTimeout( _ => { }, 0)
       return waitSeconds(seconds)
         .then( _ => {
           let highlights = Array.from(document.querySelectorAll(`.h_${id}`))  // look for ids as decorated by tweaked extension
           let highlight = highlights[0]
-          try {
-            console.log(`search for ${id} done, now click at ${Date.now() / 1000}`)
-            highlight.click()
-            console.log(`gather for ${id} at ${Date.now() / 1000}`)
-            highlights = highlights.map(hl => { return { text: hl.innerText } })
-            console.log(`highlights ${JSON.stringify(highlights)}`)
 
-            const anchored = {} 
-            anchored[id] = {
-              anchoredHighlight: '',
-              outcome: null
-            }
+          const anchored = {}
+          anchored[id] = {
+            anchoredHighlight: '',
+            outcome: null,
+            id: id,
+          }
+
+          let hl
+
+          if (highlight && highlight.click) {
+
+            highlights = highlights.map(hl => { return { text: hl.innerText } })
 
             for (let i = 0, hl; i < highlights.length; i++) {
+              if ( i == 0 ) {
+                highlight.click()
+                setTimeout( _ => { }, 0)
+              }
 
               hl = highlights[i]
               if (hl.text === 'Loading annotations…') {
-                console.log(`got 'Loading annotations…', maybe orphan`)
                 anchored[id].anchoredHighlight = hl.text
-                anchored[id].outcome = 'orphan'
+                anchored[id].outcome = 'loading'
+                console.log('loading')
                 break
               }
-             anchored[id].anchoredHighlight += hl.text  // accumulate highlight text in the document
+
+              anchored[id].anchoredHighlight += hl.text  // accumulate highlight text in the document
+
               if (anchored[id].anchoredHighlight === apiHighlights[id]) {  // exactly equal to api result?
                 anchored[id].outcome = 'exact'
-                console.log('found exact match')
+                console.log('exact')
                 break
               }
+
               if (i == highlights.length - 1) {  // something matched
                 anchored[id].outcome = 'fuzzy'
-                console.log('found fuzzy match')
+                console.log('fuzzy')
+                break
               }
             }
             return Promise.resolve(anchored)
-          } catch (e) {
-            throw (e)
+          } else {
+            console.log('orphan')
+            anchored[id].outcome = 'orphan'
+            return Promise.resolve(anchored)
           }
         })
     }, id, apiHighlights, pdfPageCount)
