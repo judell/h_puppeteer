@@ -85,7 +85,7 @@ async function runPdfTest(testUrlIndex, testUrl) {
     return Promise.resolve(_pdfPages.length)
   })
 
-  createFirefoxScript(testUrlIndex, apiHighlights)
+  createFirefoxScript(testUrlIndex, pdfPageCount, apiHighlights)
 
   let finalResults = {}
 
@@ -93,17 +93,15 @@ async function runPdfTest(testUrlIndex, testUrl) {
 
     console.log(`working on page ${pageNumber}`)
 
-    let results = await page.evaluate( (pageNumber, apiHighlights)  => {  // this block runs in the browser
+    const results = await page.evaluate( (pageNumber, apiHighlights)  => {  // this block runs in the browser
 
       async function goto(pageNumber) {
         let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}'] .annotator-hl`
         let selectorPdfjs2 = `.page[data-page-number='${pageNumber}'] .annotator-hl`
         let pageElement = document.querySelector(selectorPdfjs1)
         console.log(`pageElement ${pageElement}`)
-        try {
+        if (pageElement) {
           pageElement.scrollIntoView()
-        } catch (e) {
-          console.log(`on pageNumber ${pageNumber}:`, e)
         }
         return Promise.resolve(true)
       }
@@ -129,7 +127,9 @@ async function runPdfTest(testUrlIndex, testUrl) {
         console.log(`wait ${seconds} then goto page ${pageNumber}`)
         await waitSeconds(seconds)
         await goto(pageNumber)
-        let highlights = Array.from(document.querySelectorAll('.annotator-hl'))
+        let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}'] .annotator-hl`
+        let selectorPdfjs2 = `.page[data-page-number='${pageNumber}'] .annotator-hl`
+        let highlights = Array.from(document.querySelectorAll(selectorPdfjs1))
         console.log(highlights.length, highlights)
         let results = {}
         for (i = 0; i < highlights.length; i++) {
@@ -152,8 +152,6 @@ async function runPdfTest(testUrlIndex, testUrl) {
       finalResults[id] = results[id]
     })
   }
-
-  console.log(Object.keys(finalResults).length) 
 
   Object.keys(apiHighlights).forEach(id => {
 
@@ -178,10 +176,19 @@ async function runPdfTest(testUrlIndex, testUrl) {
     }
   })
 
-  console.log(Object.keys(finalResults).length)  
-  console.log(finalResults)
+  let ids = Object.keys(finalResults)
+  let fuzzy = ids.filter(id => { return finalResults[id].outcome === 'fuzzy' }).length
+  let exact = ids.filter(id => { return finalResults[id].outcome === 'exact' }).length
+  let orphan = ids.filter(id => { return finalResults[id].outcome === 'orphan' }).length
+  let total = fuzzy + exact + orphan 
 
-  await waitSeconds(20)
+  console.log(`fuzzy ${fuzzy}, exact ${exact}, orphan ${orphan}, total ${total}`)
+
+  Object.keys(finalResults).forEach(id => {
+    console.log( {id: id, page: finalResults[id].pageNumber, outcome: finalResults[id].outcome} )
+  })
+
+  await waitSeconds(2)
 
   await browser.close()
 
@@ -209,12 +216,13 @@ async function runPdfTest(testUrlIndex, testUrl) {
   }
 }
 
-function createFirefoxScript(testUrlIndex, apiHighlights) {
+function createFirefoxScript(testUrlIndex, pdfPageCount, apiHighlights) {
   let script
   fs.readFile('firefoxInject.js', 'utf8', (err, data) => {
     if (err) throw err
     script = data
-    script = script.replace('__API_HIGHLIGHTS__', JSON.stringify(apiHighlights))
+    script = script.replace('__API_HIGHLIGHTS__', JSON.stringify(apiHighlights)) 
+    script = script.replace('__PDF_PAGE_COUNT__', pdfPageCount)
     fs.writeFile(`${testUrlIndex}.ff.js`, script, err => {
       if (err) throw err
     })
@@ -225,23 +233,12 @@ async function runTestOnAllPdfUrls() {
   let results = {}
   for (let testUrlIndex = 0; testUrlIndex < testUrls.length; testUrlIndex++) {
     let testUrl = testUrls[testUrlIndex]
-    let r = await runPdfTest(testUrlIndex, testUrl)
-    results[testUrl] = r
-  }
-  let urls = Object.keys(results);
-  urls.forEach(url => {
-    let result = results[url];
-    let summary = {}
-    let expectedIds = Object.keys(result.results)
-    expectedIds.forEach(id => {
-      summary[id] = result
-    })
-    summary = `{ ${JSON.stringify(summary, null, 2)} }`
-    console.log(summary);
-    fs.writeFile(`${url}.json`, summary, err => {
+    let result = await runPdfTest(testUrlIndex, testUrl)
+    fs.writeFile(`${testUrlIndex}.json`, JSON.stringify(result), err => {
       if (err) throw err
     })
-  })
+    results[testUrl] = result
+  }
 }
 
 runTestOnAllPdfUrls()

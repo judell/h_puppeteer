@@ -4,7 +4,9 @@ const allIds = Object.keys(apiHighlights)
 
 async function evaluate(pageNumber) {
 
-  let highlights = Array.from(document.querySelectorAll('.annotator-hl'))
+  let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}'] .annotator-hl`
+  let selectorPdfjs2 = `.page[data-page-number='${pageNumber}'] .annotator-hl`
+  let highlights = Array.from(document.querySelectorAll(selectorPdfjs2))
   console.log(highlights.length, highlights)
   
   let results = {}
@@ -68,9 +70,6 @@ async function main() {
     })
   }
 
-  console.log(Object.keys(finalResults).length)  
-  console.log(finalResults)
-
   allIds.forEach(id => {
     if (! finalResults[id]) {
       finalResults[id] = initResult(id)
@@ -84,11 +83,16 @@ async function main() {
     }
   })
 
-  console.log(Object.keys(finalResults).length)  
-  console.log(finalResults)
+  let ids = Object.keys(finalResults)
+  let fuzzy = ids.filter(id => { return finalResults[id].outcome === 'fuzzy' }).length
+  let exact = ids.filter(id => { return finalResults[id].outcome === 'exact' }).length
+  let orphan = ids.filter(id => { return finalResults[id].outcome === 'orphan' }).length
+  let total = fuzzy + exact + orphan 
+
+  console.log(`fuzzy ${fuzzy}, exact ${exact}, orphan ${orphan}, total ${total}`)
 
   Object.keys(finalResults).forEach(id => {
-    console.log( {id: id, outcome: finalResults[id].outcome} )
+    console.log( {id: id, page: finalResults[id].pageNumber, outcome: finalResults[id].outcome} )
   })
 
 }
