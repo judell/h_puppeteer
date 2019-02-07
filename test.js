@@ -50,7 +50,6 @@ async function callSearchApi(testUrl) {
 async function runPdfTest(testUrlIndex, testUrl) {
 
   const apiHighlights = {}
-  const results = {}  
 
   // gather results from the api
   let apiResults = await getApiResults(testUrl)
@@ -78,7 +77,7 @@ async function runPdfTest(testUrlIndex, testUrl) {
   let page = pages[1] // 0 is the about page, 1 is the welcome page with h extension loaded
   const client = await page.target().createCDPSession()
   await client.send('Page.navigate', { url: testUrl })
-  let seconds = 20
+  let seconds = 15
   console.log(`waiting ${seconds}`)
   await waitSeconds(seconds)
   const pdfPageCount = await page.evaluate(() => {
@@ -86,101 +85,110 @@ async function runPdfTest(testUrlIndex, testUrl) {
     return Promise.resolve(_pdfPages.length)
   })
 
-  let ids = Object.keys(apiHighlights)
+  createFirefoxScript(testUrlIndex, apiHighlights)
 
-  createFirefoxScript(testUrlIndex, testUrl, pdfPageCount, ids, apiHighlights)
+  let finalResults = {}
 
-  // step through the ids of annotations expected to anchor
-  for (let i = 0; i < ids.length; i++) {
+  for (let pageNumber = 1; pageNumber <= pdfPageCount; pageNumber++) {
 
-    apiResult = apiResults[i]
+    console.log(`working on page ${pageNumber}`)
 
-    let id = ids[i]
-    console.log(`working on ${id}, ${apiHighlights[id]}`)
+    let results = await page.evaluate( (pageNumber, apiHighlights)  => {  // this block runs in the browser
 
-    // search for the highlight the api says should be there
+      async function goto(pageNumber) {
+        let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}'] .annotator-hl`
+        let selectorPdfjs2 = `.page[data-page-number='${pageNumber}'] .annotator-hl`
+        let pageElement = document.querySelector(selectorPdfjs1)
+        console.log(`pageElement ${pageElement}`)
+        try {
+          pageElement.scrollIntoView()
+        } catch (e) {
+          console.log(`on pageNumber ${pageNumber}:`, e)
+        }
+        return Promise.resolve(true)
+      }
 
-    let anchored = await page.evaluate((id, apiHighlights, pdfPageCount) => {  // this block runs in the browser
-      let searchText = apiHighlights[id]
-      console.log(`evaluating id ${id}, pdfPageCount ${pdfPageCount}, searchText ${searchText}`)
+      function initResult(id, pageNumber) {
+        return {
+          apiHighlight: apiHighlights[id],
+          anchoredHighlight: '',
+          outcome: null,
+          pageNumber: pageNumber
+        }
+      }
+
       async function waitSeconds(seconds) {
         function delay(seconds) {
           return new Promise(resolve => setTimeout(resolve, seconds * 1000))
         }
         await delay(seconds)
       }
-      let findInput = document.getElementById('findInput')  // get the pdfjs search input box
-      findInput.value = searchText                          // put in the annotation's exact quote
-      PDFViewerApplication.findBar.dispatchEvent('')        // tell pdfjs to find it
-      let seconds = 5                                   // give that time to happen
-      console.log(`waiting ${seconds}`)
-      setTimeout( _ => { }, 0)
-      return waitSeconds(seconds)
-        .then( _ => {
-          let highlights = Array.from(document.querySelectorAll(`.h_${id}`))  // look for ids as decorated by tweaked extension
-          let highlight = highlights[0]
 
-          const anchored = {}
-          anchored[id] = {
-            anchoredHighlight: '',
-            outcome: null,
-            id: id,
+      async function main() {
+        let seconds = 5
+        console.log(`wait ${seconds} then goto page ${pageNumber}`)
+        await waitSeconds(seconds)
+        await goto(pageNumber)
+        let highlights = Array.from(document.querySelectorAll('.annotator-hl'))
+        console.log(highlights.length, highlights)
+        let results = {}
+        for (i = 0; i < highlights.length; i++) {
+          let highlight = highlights[i]
+          let id = highlight.className.replace('annotator-hl ','').replace('h_','')
+          console.log(`id ${id}`)
+          if (! results[id]) {
+            results[id] = initResult(id, pageNumber)
           }
+          results[id].anchoredHighlight += highlight.innerText
+        }
+        console.log(`resolving page ${pageNumber} with ${JSON.stringify(results)}`)
+        return (Promise.resolve(results))
+      }
+      return Promise.resolve(main())
+    }, pageNumber, apiHighlights)
 
-          let hl
-
-          if (highlight && highlight.click) {
-
-            highlights = highlights.map(hl => { return { text: hl.innerText } })
-
-            for (let i = 0, hl; i < highlights.length; i++) {
-              if ( i == 0 ) {
-                highlight.click()
-                setTimeout( _ => { }, 0)
-              }
-
-              hl = highlights[i]
-              if (hl.text === 'Loading annotations…') {
-                anchored[id].anchoredHighlight = hl.text
-                anchored[id].outcome = 'loading'
-                console.log('loading')
-                break
-              }
-
-              anchored[id].anchoredHighlight += hl.text  // accumulate highlight text in the document
-
-              if (anchored[id].anchoredHighlight === apiHighlights[id]) {  // exactly equal to api result?
-                anchored[id].outcome = 'exact'
-                console.log('exact')
-                break
-              }
-
-              if (i == highlights.length - 1) {  // something matched
-                anchored[id].outcome = 'fuzzy'
-                console.log('fuzzy')
-                break
-              }
-            }
-            return Promise.resolve(anchored)
-          } else {
-            console.log('orphan')
-            anchored[id].outcome = 'orphan'
-            return Promise.resolve(anchored)
-          }
-        })
-    }, id, apiHighlights, pdfPageCount)
-    console.log(`anchored ${JSON.stringify(anchored)}`)
-    results[id] = anchored[id]
+    console.log(results)
+    Object.keys(results).forEach(id => {
+      finalResults[id] = results[id]
+    })
   }
+
+  console.log(Object.keys(finalResults).length) 
+
+  Object.keys(apiHighlights).forEach(id => {
+
+    function initResult(id, pageNumber) {
+      return {
+        apiHighlight: apiHighlights[id],
+        anchoredHighlight: '',
+        outcome: null,
+        pageNumber: pageNumber
+      }
+    }
+
+    if (! finalResults[id]) {
+      finalResults[id] = initResult(id)
+      finalResults[id].outcome = 'orphan'
+    } else {
+      if (finalResults[id].anchoredHighlight === apiHighlights[id]) {
+        finalResults[id].outcome = 'exact'
+      } else {
+        finalResults[id].outcome = 'fuzzy'
+      }
+    }
+  })
+
+  console.log(Object.keys(finalResults).length)  
+  console.log(finalResults)
+
+  await waitSeconds(20)
 
   await browser.close()
-  
-  return { 
-    testUrl: testUrl, 
-    pdfPageCount: pdfPageCount, 
-    apiHighlights: apiHighlights, 
-    results: results
-  }
+
+  return Promise.resolve({
+    testUrl: testUrl,
+    finalResults: finalResults
+  })
 
   async function getApiResults(testUrl) {
     let apiResults = JSON.parse(await (callSearchApi(testUrl)))
@@ -201,26 +209,28 @@ async function runPdfTest(testUrlIndex, testUrl) {
   }
 }
 
-async function runTestOnAllPdfUrls() {
-  let results = []
-  for (let i = 0; i < testUrls.length; i++) {
-    let r = await runPdfTest(i, testUrls[i])
-    results.push(r)
-  }
-  return Promise.resolve(results)
+function createFirefoxScript(testUrlIndex, apiHighlights) {
+  let script
+  fs.readFile('firefoxInject.js', 'utf8', (err, data) => {
+    if (err) throw err
+    script = data
+    script = script.replace('__API_HIGHLIGHTS__', JSON.stringify(apiHighlights))
+    fs.writeFile(`${testUrlIndex}.ff.js`, script, err => {
+      if (err) throw err
+    })
+  })
 }
 
-runTestOnAllPdfUrls()
-  .then(results => {
-    digestPdfResults(results);
-  })
-
-function digestPdfResults(results) {
-  let summary = {};
-  let keys = Object.keys(results);
-  keys.forEach(key => {
-    let result = results[key];
-    console.log(`${result.testUrl} (pages: ${result.pdfPageCount})`)
+async function runTestOnAllPdfUrls() {
+  let results = {}
+  for (let testUrlIndex = 0; testUrlIndex < testUrls.length; testUrlIndex++) {
+    let testUrl = testUrls[testUrlIndex]
+    let r = await runPdfTest(testUrlIndex, testUrl)
+    results[testUrl] = r
+  }
+  let urls = Object.keys(results);
+  urls.forEach(url => {
+    let result = results[url];
     let summary = {}
     let expectedIds = Object.keys(result.results)
     expectedIds.forEach(id => {
@@ -228,28 +238,13 @@ function digestPdfResults(results) {
     })
     summary = `{ ${JSON.stringify(summary, null, 2)} }`
     console.log(summary);
-    fs.writeFile(`${key}.json`, summary, err => {
+    fs.writeFile(`${url}.json`, summary, err => {
       if (err) throw err
     })
   })
 }
 
-function createFirefoxScript(testUrlIndex, testUrl, pdfPageCount, ids, apiHighlights, searchText) {
-  let script
-  fs.readFile('firefoxInject.js', 'utf8', (err, data) => {
-    if (err) throw err
-    script = data
-    script = script.replace('__TEST_URL_INDEX__', testUrlIndex)
-    script = script.replace('__TEST_URL__', `"${testUrl}"`)
-    script = script.replace('__PDF_PAGE_COUNT__', pdfPageCount)
-    script = script.replace('__IDS__', JSON.stringify(ids))
-    script = script.replace('__API_HIGHLIGHTS__', JSON.stringify(apiHighlights))
-    script = script.replace('__SEARCH_TEXT__', `"${searchText}"`)
-    fs.writeFile(`${testUrlIndex}.ff.js`, script, err => {
-      if (err) throw err
-    })
-  })
-}
+runTestOnAllPdfUrls()
 
 // from hlib
 
