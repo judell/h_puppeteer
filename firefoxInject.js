@@ -1,12 +1,9 @@
-const testUrlIndex = __TEST_URL_INDEX__
-const testUrl = __TEST_URL__
-const pdfPageCount = __PDF_PAGE_COUNT__ 
-const ids = __IDS__
 const apiHighlights =  __API_HIGHLIGHTS__
+const ids = Object.keys(apiHighlights)
 
 async function evaluate(pageNumber) {
 
-  let highlights = Array.from(document.querySelectorAll(`.page[data-page-number='${pageNumber}'] .annotator-hl`))
+  let highlights = Array.from(document.querySelectorAll('.annotator-hl'))
   console.log(highlights.length, highlights)
   
   let results = {}
@@ -32,7 +29,6 @@ async function evaluate(pageNumber) {
 }
 
 function goto(pageNumber) {
-    console.log(`.page[data-page-number='${pageNumber}']`)
     let pageElement = document.querySelector(`.page[data-page-number='${pageNumber}']`)
     console.log(`pageElement ${pageElement}`)
     pageElement.scrollIntoView()
@@ -75,7 +71,6 @@ async function main() {
   console.log(finalResults)
 
   allIds.forEach(id => {
-
     if (! finalResults[id]) {
       finalResults[id] = initResult(id)
       finalResults[id].outcome = 'orphan'
@@ -86,7 +81,6 @@ async function main() {
         finalResults[id].outcome = 'fuzzy'
       }
     }
-    
   })
 
   console.log(Object.keys(finalResults).length)  
