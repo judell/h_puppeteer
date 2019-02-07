@@ -95,6 +95,7 @@ async function runPdfTest(testUrlIndex, testUrl) {
 				// this block runs in the browser
 
 				async function goto(pageNumber) {
+          await waitSeconds(5)
 					let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}'] .annotator-hl`
 					let selectorPdfjs2 = `.page[data-page-number='${pageNumber}'] .annotator-hl`
 					let pageElement = document.querySelector(selectorPdfjs1)

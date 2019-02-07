@@ -34,7 +34,11 @@ async function evaluate(pageNumber) {
 function goto(pageNumber) {
     let pageElement = document.querySelector(`.page[data-page-number='${pageNumber}']`)
     console.log(`pageElement ${pageElement}`)
-    pageElement.scrollIntoView()
+    if (pageElement) {
+      pageElement.scrollIntoView()
+    } else {
+      console.log(`no annotations on page ${pageNumber}`)
+    }
 }
 
 function initResult(id, pageNumber) {
