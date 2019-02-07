@@ -1,5 +1,6 @@
 const apiHighlights =  __API_HIGHLIGHTS__
-const ids = Object.keys(apiHighlights)
+const pdfPageCount = __PDF_PAGE_COUNT__
+const allIds = Object.keys(apiHighlights)
 
 async function evaluate(pageNumber) {
 
@@ -93,3 +94,4 @@ async function main() {
 }
 
 main()
+
