@@ -2,6 +2,8 @@ const puppeteer = require('puppeteer')
 const https = require('https')
 const fs = require('fs')
 
+const hlib = require('hlib')
+
 const waitSecondsBeforeClosingBrowser = 60 * 60 * 2
 
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
@@ -27,6 +29,13 @@ async function waitSeconds(seconds) {
 	await delay(seconds)
 }
 
+/*
+
+* This was a simple node-based wrapper for the Hypothesis API, OK for <= 200 results,
+* but missing pagination. Rather than reinvent that here I convered hlib
+* into a node-compatible module so I could use hlib.search. Todo, if it ever
+* matters: adjust the canonical hlib so it can go both ways, browser + node. 
+
 async function callSearchApi(testUrl) {
 	return new Promise((resolve, reject) => {
 		let apiUrl = `https://hypothes.is/api/search?limit=200&uri=${testUrl}`
@@ -42,6 +51,19 @@ async function callSearchApi(testUrl) {
 				reject(e)
 			})
 		})
+	})
+}*/
+
+async function callSearchApi(testUrl) {
+	return new Promise((resolve, reject) => {
+		let params = {
+			url: testUrl,
+			max: 1000,
+			https: https
+		}
+		hlib.search(params)
+			.then ( data => { resolve(data)} )
+	    .catch( reason => {reject(reason)})
 	})
 }
 
@@ -208,14 +230,14 @@ async function runPdfTest(testUrlIndex, testUrl) {
 	})
 
 	async function getApiResults(testUrl) {
-		let apiResults = JSON.parse(await callSearchApi(testUrl))
-		let apiRows = apiResults.rows.filter((row) => {
-			let selectors = parseSelectors(row.target)
+		let apiResults = await callSearchApi(testUrl)
+		let apiRows = apiResults[0].filter((row) => {
+			let selectors = hlib.parseSelectors(row.target)
 			return Object.keys(selectors).length // filter out page notes
 		})
 		apiResults = apiRows.map((row) => {
-			let anno = parseAnnotation(row)
-			let selectors = parseSelectors(row.target)
+			let anno = hlib.parseAnnotation(row)
+			let selectors = hlib.parseSelectors(row.target)
 			let textPosition = selectors.TextPosition
 			return { id: row.id, anno: anno, start: textPosition.start }
 		})
@@ -254,86 +276,5 @@ async function runTestOnAllPdfUrls() {
 
 runTestOnAllPdfUrls()
 
-// from hlib
 
-function parseAnnotation(row) {
-	let id = row.id
-	let url = row.uri
-	let updated = row.updated.slice(0, 19)
-	let group = row.group
-	let title = url
-	let refs = row.references ? row.references : []
-	let user = row.user.replace('acct:', '').replace('@hypothes.is', '')
-	let quote = ''
-	if (row.target && row.target.length) {
-		let selectors = row.target[0].selector
-		if (selectors) {
-			for (let i = 0; i < selectors.length; i++) {
-				let selector = selectors[i]
-				if (selector.type === 'TextQuoteSelector') {
-					quote = selector.exact
-				}
-			}
-		}
-	}
-	let text = row.text ? row.text : ''
-	let tags = row.tags
-	try {
-		title = row.document.title
-		if (typeof title === 'object') {
-			title = title[0]
-		} else {
-			title = url
-		}
-	} catch (e) {
-		title = url
-	}
-	let isReply = refs.length > 0
-	let isPagenote = row.target && !row.target[0].hasOwnProperty('selector')
-	let r = {
-		id: id,
-		url: url,
-		updated: updated,
-		title: title,
-		refs: refs,
-		isReply: isReply,
-		isPagenote: isPagenote,
-		user: user,
-		text: text,
-		quote: quote,
-		tags: tags,
-		group: group,
-		target: row.target
-	}
-	return r
-}
 
-function parseSelectors(target) {
-	let parsedSelectors = {}
-	let firstTarget = target[0]
-	if (firstTarget) {
-		let selectors = firstTarget.selector
-		if (selectors) {
-			let textQuote = selectors.filter(function(x) {
-				return x.type === 'TextQuoteSelector'
-			})
-			if (textQuote.length) {
-				parsedSelectors['TextQuote'] = {
-					exact: textQuote[0].exact,
-					prefix: textQuote[0].prefix,
-					suffix: textQuote[0].suffix
-				}
-			}
-			let textPosition = selectors.filter(function(x) {
-				return x.type === 'TextPositionSelector'
-			})
-			if (textPosition.length) {
-				parsedSelectors['TextPosition'] = {
-					start: textPosition[0].start,
-					end: textPosition[0].end
-				}
-			}
-		}
-	}
-	return parsedSelectors
-}
