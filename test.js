@@ -9,7 +9,11 @@ const waitSecondsBeforeClosingBrowser = 60 * 60 * 2
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const testUrls = [
-	'http://jonudell.net/h/Rhetoric_and_Crisis.pdf'
+	//'http://jonudell.net/h/osftest.pdf',
+	//'http://jonudell.net/h/power-of-habit.pdf', 
+	//'http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf', // https://github.com/hypothesis/product-backlog/issues/173
+	//'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0183175', // https://github.com/hypothesis/client/issues/558
+	'http://jonudell.net/h/Rhetoric_and_Crisis.pdf',
 	//'http://download.krone.at/pdf/ceta.pdf',
 	//'http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly-and-Rochberg-Halton-1981-The-Meaning-of-Things-Domestic-Symbols-and-the-Self.pdf',
 	//'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
