@@ -4,16 +4,21 @@ const fs = require('fs')
 
 const hlib = require('hlib')
 
-const waitSecondsBeforeClosingBrowser = 60 * 60 * 2
+const waitSecondsForExtensionToLoad = 5
+
+const waitSecondsForPdfToLoad = 15
+
+const waitSecondsBeforeClosingBrowser = 60
 
 const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
 
 const testUrls = [
+	//'http://jonudell.net/h/Knowledge%20of%20Interfaith%20Leader.pdf',
 	//'http://jonudell.net/h/osftest.pdf',
-	//'http://jonudell.net/h/power-of-habit.pdf', 
-	//'http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf', // https://github.com/hypothesis/product-backlog/issues/173
+	//'http://jonudell.net/h/power-of-habit.pdf', // scan/ocr
+	'http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf', // https://github.com/hypothesis/product-backlog/issues/173
 	//'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0183175', // https://github.com/hypothesis/client/issues/558
-	'http://jonudell.net/h/Rhetoric_and_Crisis.pdf',
+	//'http://jonudell.net/h/Rhetoric_and_Crisis.pdf',
 	//'http://download.krone.at/pdf/ceta.pdf',
 	//'http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly-and-Rochberg-Halton-1981-The-Meaning-of-Things-Domestic-Symbols-and-the-Self.pdf',
 	//'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
@@ -94,15 +99,14 @@ async function runPdfTest(testUrlIndex, testUrl) {
 		]
 	})
 
-	await waitSeconds(5) // give extension time to load
+	await waitSeconds(waitSecondsForExtensionToLoad) // give extension time to load
 
 	let pages = await browser.pages()
 	let page = pages[1] // 0 is the about page, 1 is the welcome page with h extension loaded
 	const client = await page.target().createCDPSession()
 	await client.send('Page.navigate', { url: testUrl })
-	let seconds = 15
-	console.log(`waiting ${seconds}`)
-	await waitSeconds(seconds)
+	console.log(`waiting ${waitSecondsForPdfToLoad}`)
+	await waitSeconds(waitSecondsForPdfToLoad)
 	const pdfPageCount = await page.evaluate(() => {
 		// this block runs in the browser
 		let _pdfPages = Array.from(document.querySelectorAll('.page'))
@@ -117,11 +121,9 @@ async function runPdfTest(testUrlIndex, testUrl) {
 		console.log(`working on page ${pageNumber}`)
 
 		const results = await page.evaluate(
-			(pageNumber, apiHighlights) => {
-				// this block runs in the browser
+			(pageNumber, apiHighlights) => {  // this block runs in the browser
 
 				async function goto(pageNumber) {
-          await waitSeconds(5)
 					let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}'] .annotator-hl`
 					let selectorPdfjs2 = `.page[data-page-number='${pageNumber}'] .annotator-hl`
 					let pageElement = document.querySelector(selectorPdfjs1)
@@ -151,9 +153,9 @@ async function runPdfTest(testUrlIndex, testUrl) {
 				}
 
 				async function main() {
-					let seconds = 5
-					console.log(`wait ${seconds} then goto page ${pageNumber}`)
-					await waitSeconds(seconds)
+					const waitSecondsBeforeGotoPage = 3
+					console.log(`wait ${waitSecondsBeforeGotoPage} then goto page ${pageNumber}`)
+					await waitSeconds(waitSecondsBeforeGotoPage)
 					await goto(pageNumber)
 					let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}'] .annotator-hl`
 					let selectorPdfjs2 = `.page[data-page-number='${pageNumber}'] .annotator-hl`
@@ -172,7 +174,9 @@ async function runPdfTest(testUrlIndex, testUrl) {
 					console.log(`resolving page ${pageNumber} with ${JSON.stringify(results)}`)
 					return Promise.resolve(results)
 				}
+
 				return Promise.resolve(main())
+
 			},
 			pageNumber,
 			apiHighlights

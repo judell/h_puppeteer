@@ -2,6 +2,8 @@ const apiHighlights =  __API_HIGHLIGHTS__
 const pdfPageCount = __PDF_PAGE_COUNT__
 const allIds = Object.keys(apiHighlights)
 
+const waitSecondsBeforeGotoPage = 3
+
 async function evaluate(pageNumber) {
 
   let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}'] .annotator-hl`
@@ -31,7 +33,7 @@ async function evaluate(pageNumber) {
   return (Promise.resolve(results))
 }
 
-function goto(pageNumber) {
+async function goto(pageNumber) {
     let pageElement = document.querySelector(`.page[data-page-number='${pageNumber}']`)
     console.log(`pageElement ${pageElement}`)
     if (pageElement) {
@@ -39,6 +41,7 @@ function goto(pageNumber) {
     } else {
       console.log(`no annotations on page ${pageNumber}`)
     }
+    return Promise.resolve(true)
 }
 
 function initResult(id, pageNumber) {
@@ -62,10 +65,9 @@ async function main() {
  let finalResults = {}
 
   for (let i = 1; i <= pdfPageCount; i++) {
-    await waitSeconds(1)
+    await waitSeconds(waitSecondsBeforeGotoPage)
     console.log(`goto page ${i}`)
-    goto(i)
-    await waitSeconds(1)
+    await goto(i)
     console.log(`evaluate page ${i}`)
     let results = await evaluate(i)
     console.log(results)
