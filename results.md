@@ -12,6 +12,12 @@
 | fuzzy 1, exact 31, orphan 0, total 32 | fuzzy 1, exact 31, orphan 0, total 32
 | http://jonudell.net/h/Rhetoric_and_Crisis.pdf | http://jonudell.net/h/Rhetoric_and_Crisis.pdf
 | fuzzy 55, exact 157, orphan 4, total 216 |  fuzzy 126, exact 86, orphan 4, total 216
+| http://jonudell.net/h/power-of-habit.pdf | http://jonudell.net/h/power-of-habit.pdf
+| fuzzy 1, exact 1, orphan 0, total 2 | 
+| http://jonudell.net/h/Knowledge%20of%20Interfaith%20Leader.pdf | http://jonudell.net/h/Knowledge%20of%20Interfaith%20Leader.pdf
+| fuzzy 1, exact 1, orphan 0, total 2 | fuzzy 1, exact 1, orphan 0, total 2
+| http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf | http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf
+| fuzzy 21, exact 41, orphan 1, total 63 | fuzzy 50, exact 9, orphan 4, total 63
 
 # Notes
 
