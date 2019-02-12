@@ -18,7 +18,8 @@
 | fuzzy 1, exact 1, orphan 0, total 2 | fuzzy 1, exact 1, orphan 0, total 2
 | http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf | http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf
 | fuzzy 21, exact 41, orphan 1, total 63 | fuzzy 50, exact 9, orphan 4, total 63
-
+| http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf | http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf
+| fuzzy 16, exact 8, orphan 0, total 24 | 
 # Notes
 
 ## https://arxiv.org/pdf/1606.02960.pdf
@@ -30,3 +31,21 @@ The other, https://hyp.is/A2DBQoEWEea7_jODeE5fXQ/arxiv.org, is a case where the 
 ## http://jonudell.net/h/Rhetoric_and_Crisis.pdf
 
 The test reports a few more orphans than the client does. At first I assumed this was a problem with the test, but it is actually a problem with the client. See https://github.com/hypothesis/product-backlog/issues/954
+
+## cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf
+
+One of the orphans: 
+
+https://hypothes.is/api/annotations/pgbFGvOmEeaOU28zzCr5uQ
+
+- exact	:	collaborations between instructional designers and students
+- prefix	:	ograms designed by faculty, and 
+- suffix	:	 are becoming increasingly popul
+
+Which seems like it'd map unproblematically, in this born-digital document, to:
+
+&lt;div data-canvas-width="354.24" style="left: 429.918px; top: 708.658px; font-size: 15px; font-family: sans-serif; transform: scaleX(1.04124);">and &lt;hypothesis-highlight class="annotator-hl">collaborations between instructional designers &lt;/hypothesis-highlight>&lt;/div>
+&lt;div data-canvas-width="356.29799999999994" style="left: 429.918px; top: 726.313px; font-size: 15px; font-family: sans-serif; transform: scaleX(1.09281);">&lt;hypothesis-highlight class="annotator-hl">and students&lt;/hypothesis-highlight> are becoming increasingly popular. &lt;/div>
+
+The others appear similar. 
+
