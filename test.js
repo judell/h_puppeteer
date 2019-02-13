@@ -6,7 +6,7 @@ const hlib = require('hlib')
 
 const waitSecondsForExtensionToLoad = 5
 
-const waitSecondsForPdfToLoad = 15
+const waitSecondsForPdfToLoad = 25
 
 const waitSecondsBeforeClosingBrowser = 60
 
@@ -16,19 +16,20 @@ const testUrls = [
 	//'http://jonudell.net/h/Knowledge%20of%20Interfaith%20Leader.pdf',
 	//'http://jonudell.net/h/osftest.pdf',
 	//'http://jonudell.net/h/power-of-habit.pdf', // scan/ocr
-	'http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf', // https://github.com/hypothesis/product-backlog/issues/173
+	//'http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf', // https://github.com/hypothesis/product-backlog/issues/173
 	//'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0183175', // https://github.com/hypothesis/client/issues/558
 	//'http://jonudell.net/h/Rhetoric_and_Crisis.pdf',
 	//'http://download.krone.at/pdf/ceta.pdf',
 	//'http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly-and-Rochberg-Halton-1981-The-Meaning-of-Things-Domestic-Symbols-and-the-Self.pdf',
 	//'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
-	//'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338
+	//'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338 // not a pdf
 	//'https://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf'
 	//'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
 	//'https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf',
 	//'https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf',
 	//'https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf',
-	//'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
+	//'https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf',
+	'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
 ]
 
 async function waitSeconds(seconds) {
@@ -124,14 +125,15 @@ async function runPdfTest(testUrlIndex, testUrl) {
 			(pageNumber, apiHighlights) => {  // this block runs in the browser
 
 				async function goto(pageNumber) {
-					let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}'] .annotator-hl`
-					let selectorPdfjs2 = `.page[data-page-number='${pageNumber}'] .annotator-hl`
+					let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}']`
+					//let selectorPdfjs2 = `.page[data-page-number='${pageNumber}']`
 					let pageElement = document.querySelector(selectorPdfjs1)
 					console.log(`pageElement ${pageElement}`)
 					if (pageElement) {
+						console.log(`scrolling to ${pageNumber}`)
 						pageElement.scrollIntoView()
 					} else {
-						console.log(`no annotations on page ${pageNumber}`)
+						console.log(`cannot goto page ${pageNumber}`)
 					}
 					return Promise.resolve(true)
 				}

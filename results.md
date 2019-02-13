@@ -26,6 +26,8 @@
 | fuzzy 5, exact 34, orphan 0, total 39 | fuzzy 11, exact 28, orphan 0, total 39
 | <a href="https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf">https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b...</a> | <a href="https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf">https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b...</a>
 | fuzzy 1, exact 94, orphan 5, total 100 | fuzzy 1, exact 94, orphan 5, total 100
+| https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf | https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf
+| fuzzy 0, exact 1, orphan 0, total 1 | fuzzy 0, exact 1, orphan 0, total 1
 
 # Notes
 
@@ -66,3 +68,7 @@ Object {id: "eSx1biQrEem_H0uQ1keNYQ", page: undefined, outcome: "orphan"}
 Object {id: "5iH8UiT4EemI6qtMD5lVww", page: undefined, outcome: "orphan"}
 
 I find that in all these cases, the target of the unreported orphan overlaps the target of one or more anchored annotations. I have updated https://github.com/hypothesis/product-backlog/issues/954 accordingly.
+
+## https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf
+
+The automated test using both Chrome/PDFjs 1 and FF/PDF.js 2 gives the same result: no orphan. But it reliably orphans when using Chrome interactively. 
