@@ -29,7 +29,12 @@ const testUrls = [
 	//'https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf',
 	//'https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf',
 	//'https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf',
-	'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
+	//'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
+	//'https://valerievacchio.files.wordpress.com/2011/10/paths-of-professional-development.pdf', // scanned, run-together targets
+	//'http://www.scu.edu.tw/philos/98class/Peng/05.pdf', // has run-together targets
+	// 'https://solaresearch.org/wp-content/uploads/2017/05/chapter4.pdf', // has run-together targets
+	'http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf', // has run-together targets
+	'https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar-Introduction-BatB-Anthology.pdf', // scanned, run-together targets
 ]
 
 async function waitSeconds(seconds) {

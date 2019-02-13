@@ -28,6 +28,20 @@
 | fuzzy 1, exact 94, orphan 5, total 100 | fuzzy 1, exact 94, orphan 5, total 100
 | https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf | https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf
 | fuzzy 0, exact 1, orphan 0, total 1 | fuzzy 0, exact 1, orphan 0, total 1
+| https://www.govinfo.gov/content/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf | https://www.govinfo.gov/content/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf
+| fuzzy 0, exact 6, orphan 0, total 6 | fuzzy 2, exact 4, orphan 0, total 6
+| https://valerievacchio.files.wordpress.com/2011/10/paths-of-professional-development.pdf | https://valerievacchio.files.wordpress.com/2011/10/paths-of-professional-development.pdf
+| fuzzy 13, exact 1, orphan 0, total 14 | fuzzy 0, exact 14, orphan 0, total 14
+| http://www.scu.edu.tw/philos/98class/Peng/05.pdf | http://www.scu.edu.tw/philos/98class/Peng/05.pdf
+| fuzzy 0, exact 33, orphan 0, total 33 | fuzzy 1, exact 32, orphan 0, total 33
+| https://solaresearch.org/wp-content/uploads/2017/05/chapter4.pdf | https://solaresearch.org/wp-content/uploads/2017/05/chapter4.pdf
+| fuzzy 0, exact 8, orphan 0, total 8 | fuzzy 3, exact 5, orphan 0, total 8
+| http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf | http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf
+| fuzzy 1, exact 9, orphan 0, total 10 | fuzzy 4, exact 5, orphan 1, total 10
+|  <a href="https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar-Introduction-BatB-Anthology.pdf">https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar.../a> | <a href="https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar-Introduction-BatB-Anthology.pdf">https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar.../a>
+| |
+
+
 
 # Notes
 
@@ -72,3 +86,7 @@ I find that in all these cases, the target of the unreported orphan overlaps the
 ## https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf
 
 The automated test using both Chrome/PDFjs 1 and FF/PDF.js 2 gives the same result: no orphan. But it reliably orphans when using Chrome interactively. 
+
+## http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf
+
+The exact target text is Cxdxxdxxln11, which has been run together from some of the letters but none of the numbers in an equation on page 30. An effort to annotate the same equation in Firefox/PDF.js 2 fails with a differently-mangled exact target text. However, that new annotation does anchor in PDF.js 1. But wait! That doesn't repro. Now we anchor (interactively) to Cxdxxdxxln11 in FF as well. But wait! Now it doesn't. OK, here is the (partial) repro. If you launch FF to page 1, then load H, the annotation seems to anchor, but if you click it in the sidebar, we (apparently) search for the wrong thing, and then it misanchors. If you launch to page 29 (by going to 29 and refreshing, it remembers the page), then launch the bookmarklet, it will anchor.
