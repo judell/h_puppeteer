@@ -2,13 +2,19 @@
 
 |Chrome / PDF.js 1|Firefox / PDF.js 2 
 |---|-
+| --- different number of orphans --- |
+| http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf | http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf
+| fuzzy 21, exact 41, orphan 1, total 63 | fuzzy 50, exact 9, orphan 4, total 63
+| http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf | http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf
+| fuzzy 1, exact 9, orphan 0, total 10 | fuzzy 4, exact 5, orphan 1, total 10
+| --- same  number of orphans --- |
 | http://download.krone.at/pdf/ceta.pdf | http://download.krone.at/pdf/ceta.pdf 
 |fuzzy 1, exact 25, orphan 0, total 26 | fuzzy 1, exact 25, orphan 0, total 26 | 
 | <a href="http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly-and-Rochberg-Halton-1981-The-Meaning-of-Things-Domestic-Symbols-and-the-Self.pdf">http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly...</a> | <a href="http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly-and-Rochberg-Halton-1981-The-Meaning-of-Things-Domestic-Symbols-and-the-Self.pdf">http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly...</a> 
 |fuzzy 2, exact 12, orphan 0, total 14 | fuzzy 11, exact 3, orphan 0, total 14
 | https://arxiv.org/pdf/1606.02960.pdf | https://arxiv.org/pdf/1606.02960.pdf 
 | fuzzy 8, exact 13, orphan 2, total 23 |  fuzzy 13, exact 8, orphan 2, total 23
- https://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf |https://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf 
+ <a href="https://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf">https://twiki.cin.ufpe.br/twiki/pub/TAES/...</a> | <a href="https://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf">https://twiki.cin.ufpe.br/twiki/pub/TAES/...</a> |
 | fuzzy 1, exact 31, orphan 0, total 32 | fuzzy 1, exact 31, orphan 0, total 32
 | http://jonudell.net/h/Rhetoric_and_Crisis.pdf | http://jonudell.net/h/Rhetoric_and_Crisis.pdf
 | fuzzy 55, exact 157, orphan 4, total 216 |  fuzzy 126, exact 86, orphan 4, total 216
@@ -16,17 +22,15 @@
 | fuzzy 0, exact 2, orphan 0, total 2 | fuzzy 0, exact 2, orphan 0, total 2
 | http://jonudell.net/h/Knowledge%20of%20Interfaith%20Leader.pdf | http://jonudell.net/h/Knowledge%20of%20Interfaith%20Leader.pdf
 | fuzzy 1, exact 1, orphan 0, total 2 | fuzzy 1, exact 1, orphan 0, total 2
-| http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf | http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf
-| fuzzy 21, exact 41, orphan 1, total 63 | fuzzy 50, exact 9, orphan 4, total 63
 | http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf | http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf
 | fuzzy 16, exact 8, orphan 0, total 24 | fuzzy 1, exact 23, orphan 0, total 24
-| https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf | https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf
+| <a href="https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf">https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have...</a> | <a href="https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf">https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have...</a> 
 | fuzzy 13, exact 49, orphan 0, total 62 | fuzzy 10, exact 52, orphan 0, total 62
 | https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf | https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf
 | fuzzy 5, exact 34, orphan 0, total 39 | fuzzy 11, exact 28, orphan 0, total 39
 | <a href="https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf">https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b...</a> | <a href="https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf">https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b...</a>
 | fuzzy 1, exact 94, orphan 5, total 100 | fuzzy 1, exact 94, orphan 5, total 100
-| https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf | https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf
+| <a href="https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf">https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations...</a> | <a href="https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf">https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations...</a> 
 | fuzzy 0, exact 1, orphan 0, total 1 | fuzzy 0, exact 1, orphan 0, total 1
 | https://www.govinfo.gov/content/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf | https://www.govinfo.gov/content/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf
 | fuzzy 0, exact 6, orphan 0, total 6 | fuzzy 2, exact 4, orphan 0, total 6
@@ -36,12 +40,8 @@
 | fuzzy 0, exact 33, orphan 0, total 33 | fuzzy 1, exact 32, orphan 0, total 33
 | https://solaresearch.org/wp-content/uploads/2017/05/chapter4.pdf | https://solaresearch.org/wp-content/uploads/2017/05/chapter4.pdf
 | fuzzy 0, exact 8, orphan 0, total 8 | fuzzy 3, exact 5, orphan 0, total 8
-| http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf | http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf
-| fuzzy 1, exact 9, orphan 0, total 10 | fuzzy 4, exact 5, orphan 1, total 10
 |  <a href="https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar-Introduction-BatB-Anthology.pdf">https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar.../a> | <a href="https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar-Introduction-BatB-Anthology.pdf">https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar.../a>
-| |
-
-
+| fuzzy 4, exact 10, orphan 0, total 14 | fuzzy 9, exact 5, orphan 0, total 14
 
 # Notes
 
