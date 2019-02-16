@@ -32,9 +32,16 @@ const testUrls = [
 	//'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
 	//'https://valerievacchio.files.wordpress.com/2011/10/paths-of-professional-development.pdf', // scanned, run-together targets
 	//'http://www.scu.edu.tw/philos/98class/Peng/05.pdf', // has run-together targets
-	// 'https://solaresearch.org/wp-content/uploads/2017/05/chapter4.pdf', // has run-together targets
-	'http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf', // has run-together targets
-	'https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar-Introduction-BatB-Anthology.pdf', // scanned, run-together targets
+	//'https://solaresearch.org/wp-content/uploads/2017/05/chapter4.pdf', // has run-together targets
+	//'http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf', // has run-together targets
+	//'https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar-Introduction-BatB-Anthology.pdf', // scanned, run-together targets
+	//'https://www.aarp.org/content/dam/aarp/livable-communities/livable-documents/documents-2018/Book-1-Roadmap-to-Livability-Web-010218.pdf',
+	//'https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436ec20e2e72c267c6627a/1547923148732/astell_from_a_serious_proposal_to_the_ladies.pdf',
+	//'http://anthro.vancouver.wsu.edu/media/Course_files/anth-510-clare-m-wilkinson/aa194345302a00010.pdf', // scanned
+	//'http://aslearningdesign.net/3888/wp-content/uploads/2018/01/01-Technology-Matters.pdf',
+	//'http://blogs.iac.gatech.edu/afterlives2018/files/2018/01/McCloud_Understanding_Comics.pdf', // scanned
+	// 'http://blogs.iac.gatech.edu/afterlives2018/files/2018/01/Introduction-to-Kindred.pdf', // scanned
+	'http://bogumilkaminski.pl/files/julia_express.pdf' // date changed?
 ]
 
 async function waitSeconds(seconds) {
@@ -122,6 +129,7 @@ async function runPdfTest(testUrlIndex, testUrl) {
 	createFirefoxScript(testUrlIndex, pdfPageCount, apiHighlights)
 
 	let finalResults = {}
+	let summary = ''
 
 	for (let pageNumber = 1; pageNumber <= pdfPageCount; pageNumber++) {
 		console.log(`working on page ${pageNumber}`)
@@ -229,7 +237,8 @@ async function runPdfTest(testUrlIndex, testUrl) {
 	}).length
 	let total = fuzzy + exact + orphan
 
-	console.log(`fuzzy ${fuzzy}, exact ${exact}, orphan ${orphan}, total ${total}`)
+	summary = `fuzzy ${fuzzy}, exact ${exact}, orphan ${orphan}, total ${total}`
+	console.log(summary)
 
 	Object.keys(finalResults).forEach((id) => {
 		console.log({ id: id, page: finalResults[id].pageNumber, outcome: finalResults[id].outcome })
@@ -240,6 +249,7 @@ async function runPdfTest(testUrlIndex, testUrl) {
 	await browser.close()
 
 	return Promise.resolve({
+		summary: summary,
 		testUrl: testUrl,
 		finalResults: finalResults
 	})
