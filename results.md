@@ -1,3 +1,9 @@
+# TL;DR
+
+My conclusion so far is that what we see here is so heavily dominated by https://github.com/hypothesis/product-backlog/issues/954 that it might make sense to see if that's a straightforward fix, which I think it might be, and fix that first.
+
+If we could at the same time make a branch of the extension with that fix,and with PDF.js 2, we could run through a larger set of tests much more efficiently. Part of what makes this slow is that although a series of tests can be run automatically in Chrome for PDF.js 1, I haven't gotten an extension working for Chrome with PDF.js 2. So to test PDF.js 2 I'm using Firefox, manually injecting generated scripts and collecting the results. That bottleneck would go away if I could toggle between Chrome extensions built with 1 and 2 respectively.
+
 # Results
 
 |Chrome / PDF.js 1|Firefox / PDF.js 2 
