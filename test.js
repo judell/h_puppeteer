@@ -8,7 +8,7 @@ const waitSecondsForExtensionToLoad = 5
 
 const waitSecondsForPdfToLoad = 25
 
-const waitSecondsForHtmlToLoad = 5
+const waitSecontsForHtmlToLoad = 10
 
 const waitSecondsBeforeClosingBrowser = 5
 
@@ -64,7 +64,7 @@ async function runPdfTest(testUrlIndex, testUrl) {
 	// gather results from the api
 	const apiHighlights = await getApiHighlights(testUrl)
 
-	let { page, browser } = await setup(testUrl, waitSecondsForExtensionToLoad)
+	let { page, browser } = await setup(testUrl, waitSecondsForPdfToLoad)
 
 	const pdfPageCount = await page.evaluate(() => {
 		// this block runs in the browser
@@ -160,7 +160,7 @@ async function runHtmlTest(testUrl) {
 	// gather results from the api
 	const apiHighlights = await getApiHighlights(testUrl)
 
-	let { page, browser } = await setup(testUrl, waitSecondsForExtensionToLoad)
+	let { page, browser } = await setup(testUrl, waitSecontsForHtmlToLoad)
 	
 	const results = await page.evaluate(
 		(apiHighlights) => {  // this block runs in the browser
@@ -171,13 +171,6 @@ async function runHtmlTest(testUrl) {
 					anchoredHighlight: '',
 					outcome: null
 				}
-			}
-
-			async function waitSeconds(seconds) {
-				function delay(seconds) {
-					return new Promise((resolve) => setTimeout(resolve, seconds * 1000))
-				}
-				await delay(seconds)
 			}
 
 			async function main() {
@@ -365,7 +358,7 @@ async function runTestOnAllPdfUrls() {
 	for (let testUrlIndex = 0; testUrlIndex < testUrls.length; testUrlIndex++) {
 		let testUrl = testUrls[testUrlIndex]
 		let result = await runPdfTest(testUrlIndex, testUrl)
-		writeUrlResults(testUrlIndex, result, 'pdf');
+		writeResults(testUrlIndex, result, 'pdf');
 		results[testUrl] = result
 	}
 	conssole.log(results)
@@ -374,19 +367,23 @@ async function runTestOnAllPdfUrls() {
 // Only for Chrome, no need to create an FF script for PDF.js 1->2 evaluation.
 async function runTestOnAllHtmlUrls() {
 	const testUrls = [
-		'http://example.com'
+		'http://example.com',
+		'https://www.theguardian.com/environment/2016/aug/02/environment-climate-change-records-broken-international-report', // https://github.com/hypothesis/client/issues/73
+		'https://telegra.ph/whatsapp-backdoor-01-16', // https://github.com/hypothesis/client/issues/558
+		'https://dashboard.wikiedu.org/training/students/wikipedia-essentials/policies-and-guidelines-basic-overview', // https://github.com/hypothesis/product-backlog/issues/493
+		'https://www.theatlantic.com/magazine/archive/1945/07/as-we-may-think/303881/', 
 	]
 	let results = {}
 	for (let testUrlIndex = 0; testUrlIndex < testUrls.length; testUrlIndex++) {
 		let testUrl = testUrls[testUrlIndex]
 		let result = await runHtmlTest(testUrl) 
-		writeUrlResults(testUrlIndex, result, 'html');
+		writeResults(testUrlIndex, result, 'html');
 		results[testUrl] = result
 	}
-	console.log(results)
+	writeResults('all', results, 'html')
 }
 
-function writeUrlResults(testUrlIndex, result, mode) {
+function writeResults(testUrlIndex, result, mode) {
 	fs.writeFile(`${testUrlIndex}.${mode}.json`, JSON.stringify(result), (err) => {
 		if (err)
 			throw err;
