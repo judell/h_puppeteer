@@ -6,33 +6,26 @@ const hlib = require('hlib')
 
 const waitSecondsForExtensionToLoad = 5
 
-const waitSecondsForPdfToLoad = 25
+const waitSecondsForPdfToLoad = 30
 
-const waitSecontsForHtmlToLoad = 10
+const waitSecondsForHtmlToLoad = 30
 
 const waitSecondsBeforeClosingBrowser = 5
 
-const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
+//const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
+const CRX_PATH = '/users/jon/hyp/'
 
 async function waitSeconds(seconds) {
-	function delay(seconds) {
-		return new Promise((resolve) => setTimeout(resolve, seconds * 1000))
-	}
+  function delay(seconds) {
+    return new Promise(resolve => setTimeout(resolve, seconds * 1000))
+  }
 	await delay(seconds)
 }
 
-/*
-
-* This was a simple node-based wrapper for the Hypothesis API, OK for <= 200 results,
-* but missing pagination. Rather than reinvent that here I convered hlib
-* into a node-compatible module so I could use hlib.search. Todo, if it ever
-* matters: adjust the canonical hlib so it can go both ways, browser + node. 
-
-async function callSearchApi(testUrl) {
+async function httpGet(testUrl) {
 	return new Promise((resolve, reject) => {
-		let apiUrl = `https://hypothes.is/api/search?limit=200&uri=${testUrl}`
 		let data = ''
-		https.get(apiUrl, (resp) => {
+		https.get(testUrl, (resp) => {
 			resp.on('data', (chunk) => {
 				data += chunk
 			})
@@ -44,13 +37,14 @@ async function callSearchApi(testUrl) {
 			})
 		})
 	})
-}*/
+}
 
 async function callSearchApi(testUrl) {
 	return new Promise((resolve, reject) => {
 		let params = {
 			url: testUrl,
 			max: 1000,
+			_separate_replies: 'true',
 			https: https
 		}
 		hlib.search(params)
@@ -59,31 +53,42 @@ async function callSearchApi(testUrl) {
 	})
 }
 
-async function runPdfTest(testUrlIndex, testUrl) {
+async function runPdfTest(testUrlIndex, testUrl, pdfVersion) {
+
+	const interimResults = {}
 
 	// gather results from the api
-	const apiHighlights = await getApiHighlights(testUrl)
+	const { apiHighlights, replyCount, pagenoteCount } = await getApiHighlightsAndPagenoteReplyCounts(testUrl)
 
 	let { page, browser } = await setup(testUrl, waitSecondsForPdfToLoad)
 
-	const pdfPageCount = await page.evaluate(() => {
+	const pdfPageCount = await page.evaluate( (pdfVersion) => {
 		// this block runs in the browser
 		let _pdfPages = Array.from(document.querySelectorAll('.page'))
 		return Promise.resolve(_pdfPages.length)
-	})
-
-	createFirefoxScript(testUrlIndex, pdfPageCount, apiHighlights)
+	}, pdfVersion)
 
 	for (let pageNumber = 1; pageNumber <= pdfPageCount; pageNumber++) {
 		console.log(`working on page ${pageNumber}`)
 
 		const results = await page.evaluate(
-			(pageNumber, apiHighlights) => {  // this block runs in the browser
+			(pageNumber, apiHighlights, pdfVersion) => {  // this block runs in the browser
+
+				async function waitSeconds(seconds) {
+					function delay(seconds) {
+						return new Promise(resolve => setTimeout(resolve, seconds * 1000))
+					}
+					await delay(seconds)
+				}
+
+				function getPdfJsSelector() {
+				  return pdfVersion == 1 ? `.page[id='pageContainer${pageNumber}']` : `.page[data-page-number='${pageNumber}']`
+				}
 
 				async function goto(pageNumber) {
-					let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}']`
-					//let selectorPdfjs2 = `.page[data-page-number='${pageNumber}']`
-					let pageElement = document.querySelector(selectorPdfjs1)
+					const selectorPdfJs = getPdfJsSelector(pdfVersion)
+					console.log(`selectorPdfJs ${selectorPdfJs}`)
+					let pageElement = document.querySelector(selectorPdfJs)
 					console.log(`pageElement ${pageElement}`)
 					if (pageElement) {
 						console.log(`scrolling to ${pageNumber}`)
@@ -103,21 +108,13 @@ async function runPdfTest(testUrlIndex, testUrl) {
 					}
 				}
 
-				async function waitSeconds(seconds) {
-					function delay(seconds) {
-						return new Promise((resolve) => setTimeout(resolve, seconds * 1000))
-					}
-					await delay(seconds)
-				}
-
 				async function main() {
 					const waitSecondsBeforeGotoPage = 3
 					console.log(`wait ${waitSecondsBeforeGotoPage} then goto page ${pageNumber}`)
 					await waitSeconds(waitSecondsBeforeGotoPage)
 					await goto(pageNumber)
-					let selectorPdfjs1 = `.page[id='pageContainer${pageNumber}'] .annotator-hl`
-					let selectorPdfjs2 = `.page[data-page-number='${pageNumber}'] .annotator-hl`
-					let highlights = Array.from(document.querySelectorAll(selectorPdfjs1))
+					const selectorPdfJs = `${getPdfJsSelector(pdfVersion)} .annotator-hl`
+					let highlights = Array.from(document.querySelectorAll(selectorPdfJs))
 					console.log(highlights.length, highlights)
 					let results = {}
 					for (i = 0; i < highlights.length; i++) {
@@ -137,10 +134,17 @@ async function runPdfTest(testUrlIndex, testUrl) {
 
 			},
 			pageNumber,
-			apiHighlights
+			apiHighlights,
+			pdfVersion
 		)
 
-		let { summary, finalResults } = classifyResults(results, apiHighlights);
+		console.log(results)
+		Object.keys(results).forEach((id) => {
+			interimResults[id] = results[id]
+		})
+	}
+
+	let { summary, finalResults } = classifyResults(interimResults, apiHighlights, replyCount, pagenoteCount)	
 
 	await waitSeconds(waitSecondsBeforeClosingBrowser)
 
@@ -149,18 +153,19 @@ async function runPdfTest(testUrlIndex, testUrl) {
 	return Promise.resolve({
 		summary: summary,
 		testUrl: testUrl,
+		pageNotes : pagenoteCount,
 		finalResults: finalResults
 	})
-
-	}
 }
 
 async function runHtmlTest(testUrl) {
 
 	// gather results from the api
-	const apiHighlights = await getApiHighlights(testUrl)
+	const { apiHighlights, replyCount, pagenoteCount } = await getApiHighlightsAndPagenoteReplyCounts(testUrl)
 
-	let { page, browser } = await setup(testUrl, waitSecontsForHtmlToLoad)
+	const badgeResults = await getBadgeResults(testUrl)
+
+	let { page, browser } = await setup(testUrl, waitSecondsForHtmlToLoad)
 	
 	const results = await page.evaluate(
 		(apiHighlights) => {  // this block runs in the browser
@@ -174,7 +179,15 @@ async function runHtmlTest(testUrl) {
 			}
 
 			async function main() {
+				async function waitSeconds(seconds) {
+					function delay(seconds) {
+						return new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+					}
+					await delay(seconds)
+				}
 				let selector = '.annotator-hl'
+				let waitSecondsBeforeQueryingDom = 5
+				await waitSeconds(waitSecondsBeforeQueryingDom)
 				let highlights = Array.from(document.querySelectorAll(selector))
 				console.log(highlights.length, highlights)
 				let results = {}
@@ -196,7 +209,7 @@ async function runHtmlTest(testUrl) {
 		apiHighlights
 	)
 
-	let { summary, finalResults } = classifyResults(results, apiHighlights);
+	let { summary, finalResults } = classifyResults(results, apiHighlights, replyCount, pagenoteCount)
 
 	await waitSeconds(waitSecondsBeforeClosingBrowser)
 
@@ -205,92 +218,109 @@ async function runHtmlTest(testUrl) {
 	return Promise.resolve({
 		summary: summary,
 		testUrl: testUrl,
+		badgeCount: badgeResults.total,
 		finalResults: finalResults
 	})
 
 }
 
-function classifyResults(results, apiHighlights) {
-	let finalResults = {};
-	let summary = '';
-	console.log(results);
+function classifyResults( results, apiHighlights, replyCount, pagenoteCount ) {
+	let finalResults = {}
+	let summary = ''
+	console.log(results)
 	Object.keys(results).forEach((id) => {
-		finalResults[id] = results[id];
-	});
+		finalResults[id] = results[id]
+	})
 	Object.keys(apiHighlights).forEach((id) => {
 		function initResult(id, pageNumber) {
-			return {
+			let result = {
 				apiHighlight: apiHighlights[id],
 				anchoredHighlight: '',
-				outcome: null,
-				pageNumber: pageNumber
-			};
+				outcome: null
+			}
+			if (pageNumber) {
+        result.pageNumber = pageNumber
+			}
+			return result
 		}
 		if (!finalResults[id]) {
-			finalResults[id] = initResult(id);
-			finalResults[id].outcome = 'orphan';
+			finalResults[id] = initResult(id)
+			finalResults[id].outcome = 'orphan'
 		}
 		else {
 			if (finalResults[id].anchoredHighlight === apiHighlights[id]) {
-				finalResults[id].outcome = 'exact';
+				finalResults[id].outcome = 'exact'
 			}
 			else {
-				finalResults[id].outcome = 'fuzzy';
+				finalResults[id].outcome = 'fuzzy'
 			}
 		}
-	});
-	let ids = Object.keys(finalResults);
-	let fuzzy = ids.filter((id) => {
-		return finalResults[id].outcome === 'fuzzy';
-	}).length;
-	let exact = ids.filter((id) => {
-		return finalResults[id].outcome === 'exact';
-	}).length;
-	let orphan = ids.filter((id) => {
-		return finalResults[id].outcome === 'orphan';
-	}).length;
-	let total = fuzzy + exact + orphan;
-	summary = `fuzzy ${fuzzy}, exact ${exact}, orphan ${orphan}, total ${total}`;
-	console.log(summary);
+	})
+	let ids = Object.keys(finalResults)
+	let fuzzy = ids.filter((id) => { return finalResults[id].outcome === 'fuzzy' }).length
+	let exact = ids.filter((id) => { return finalResults[id].outcome === 'exact' }).length
+	let orphan = ids.filter((id) => {	return finalResults[id].outcome === 'orphan'}).length
+	let total = fuzzy + exact + orphan + replyCount + pagenoteCount
+	summary = `annotations ${fuzzy + exact} (fuzzy ${fuzzy}, exact ${exact}), replies ${replyCount}, pagenotes ${pagenoteCount}, orphans ${orphan}, total ${total}`
+	console.log(summary)
 	Object.keys(finalResults).forEach((id) => {
-		console.log({ id: id, page: finalResults[id].pageNumber, outcome: finalResults[id].outcome });
-	});
-	return { summary, finalResults };
+		let pageNumber = finalResults[id].pageNumber ? finalResults[id].pageNumber : 'n/a'
+		console.log({ id: id, page: pageNumber, outcome: finalResults[id].outcome })
+	})
+	return { summary, finalResults }
+}
+
+async function getBadgeResults(testUrl) {
+	let response = await httpGet(`https://hypothes.is/api/badge?uri=${testUrl}`)
+	return JSON.parse(response)
 }
 
 async function getApiResults(testUrl) {
-	let apiResults = await callSearchApi(testUrl)
-	let apiRows = apiResults[0].filter((row) => {
-		let selectors = hlib.parseSelectors(row.target)
+	let annotationResults = await callSearchApi(testUrl)
+
+	const replyCount = annotationResults[1].length
+	
+	const annotationRows = annotationResults[0].filter( row => {
+		const selectors = row.target && hlib.parseSelectors(row.target)
 		return Object.keys(selectors).length // filter out page notes
 	})
-	apiResults = apiRows.map((row) => {
-		let anno = hlib.parseAnnotation(row)
-		let selectors = hlib.parseSelectors(row.target)
-		let textPosition = selectors.TextPosition
+
+	const pagenoteRows = annotationResults[0].filter( row => {
+    const anno = hlib.parseAnnotation(row)
+		return anno.isPagenote
+	})
+	
+	annotationResults = annotationRows.map((row) => {
+		const anno = hlib.parseAnnotation(row)
+		const selectors = hlib.parseSelectors(row.target)
+		const textPosition = selectors.TextPosition
 		return { id: row.id, anno: anno, start: textPosition.start }
 	})
-	apiResults.sort((a, b) => {
+	annotationResults.sort((a, b) => {
 		// put highlights in document order
 		return a.start - b.start
 	})
-	return apiResults
+
+	const pagenoteCount = pagenoteRows.length
+	
+	return { annotationResults, replyCount, pagenoteCount }
 }
 
-async function getApiHighlights(testUrl) {
+async function getApiHighlightsAndPagenoteReplyCounts(testUrl) {
 	const apiHighlights = {}
-	let apiResults = await getApiResults(testUrl);
+	let { annotationResults, replyCount, pagenoteCount } = await getApiResults(testUrl)
 	//convert apiResults to expected highlights
-	for (let i = 0, anno; i < apiResults.length; i++) {
-		anno = apiResults[i].anno;
-		apiHighlights[anno.id] = anno.quote;
+	for (let i = 0, anno; i < annotationResults.length; i++) {
+		anno = annotationResults[i].anno
+		apiHighlights[anno.id] = anno.quote
 	}
-	return apiHighlights
+	return { apiHighlights, replyCount, pagenoteCount }
 }
 
 async function setup(testUrl, loadSeconds) {
 	let browser = await puppeteer.launch({
 		headless: false,
+		userDataDir: '/users/jon/hyp',
 		args: [
 			`--disable-extensions-except=${CRX_PATH}`,
 			`--load-extension=${CRX_PATH}`,
@@ -298,15 +328,15 @@ async function setup(testUrl, loadSeconds) {
 			//'--window-size=1800,1000'
 			// '--enable-devtools-experiments' # useful for sniffing the chrome devtools protocol
 		]
-	});
-	await waitSeconds(waitSecondsForExtensionToLoad); // give extension time to load
-	let pages = await browser.pages();
-	let page = pages[1]; // 0 is the about page, 1 is the welcome page with h extension loaded
-	const client = await page.target().createCDPSession();
-	await client.send('Page.navigate', { url: testUrl });
-	console.log(`waiting ${loadSeconds}`);
-	await waitSeconds(loadSeconds);
-	return { page, browser };
+	})
+	await waitSeconds(waitSecondsForExtensionToLoad) // give extension time to load
+	let pages = await browser.pages()
+	let page = pages[1] // 0 is the about page, 1 is the welcome page with h extension loaded
+	const client = await page.target().createCDPSession()
+	await client.send('Page.navigate', { url: testUrl })
+	console.log(`waiting ${loadSeconds}`)
+	await waitSeconds(loadSeconds)
+	return { page, browser }
 }
 
 function createFirefoxScript(testUrlIndex, pdfPageCount, apiHighlights) {
@@ -322,7 +352,7 @@ function createFirefoxScript(testUrlIndex, pdfPageCount, apiHighlights) {
 	})
 }
 
-async function runTestOnAllPdfUrls() {
+async function runTestOnAllPdfUrls(pdfVersion) {
 	const testUrls = [
 		//'http://jonudell.net/h/Knowledge%20of%20Interfaith%20Leader.pdf',
 		//'http://jonudell.net/h/osftest.pdf',
@@ -352,32 +382,64 @@ async function runTestOnAllPdfUrls() {
 		//'http://aslearningdesign.net/3888/wp-content/uploads/2018/01/01-Technology-Matters.pdf',
 		//'http://blogs.iac.gatech.edu/afterlives2018/files/2018/01/McCloud_Understanding_Comics.pdf', // scanned
 		// 'http://blogs.iac.gatech.edu/afterlives2018/files/2018/01/Introduction-to-Kindred.pdf', // scanned
-		'http://bogumilkaminski.pl/files/julia_express.pdf' // date changed?
+		// 'http://bogumilkaminski.pl/files/julia_express.pdf' // date changed?
+		// 'https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/history.pdf?from=http%3A%2F%2Fresearch.microsoft.com%2Fen-us%2Fum%2Fpeople%2Fsimonpj%2Fpapers%2Fhistory-of-haskell%2Fhistory.pdf',
+		//'https://clalliance.org/wp-content/uploads/files/Quest_to_LearnMacfoundReport.pdf',
+		//'http://www.kwaldenphd.com/wp-content/uploads/2018/02/CBA-1997.pdf',
+		//'https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf',
+		//'https://www.audit.vic.gov.au/sites/default/files/2018-03/20180308-Improving-Air-Quality.pdf',
+		//'https://educatorinnovator.org/wp-content/uploads/2019/01/when-school-is-not-enough-marsyl.pdf',
+		//'https://kf6-stage.rit.albany.edu/attachments/56947546535c7c0709beee5c/5b439e63b985b22bc8c90547/1/CG764259_Report%20(4).pdf',
+		//'https://www.learner.org/courses/amerhistory/pdf/text/AmHst04_Revolutionary.pdf',
+		//'https://newclasses.nyu.edu/access/content/group/81e3bb2a-f53e-41f2-a2bd-9c1d43e1a545/07islandsofexpertise.pdf',
+		//'https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf',
+		//'http://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf',
+		'https://jonudell.info/h/ee12.pdf'
 	]
 	let results = {}
 	for (let testUrlIndex = 0; testUrlIndex < testUrls.length; testUrlIndex++) {
 		let testUrl = testUrls[testUrlIndex]
-		let result = await runPdfTest(testUrlIndex, testUrl)
-		writeResults(testUrlIndex, result, 'pdf');
+		let result = await runPdfTest(testUrlIndex, testUrl, pdfVersion)
+		writeResults(testUrlIndex, result, 'pdf')
 		results[testUrl] = result
 	}
-	conssole.log(results)
+	console.log(results)
 }
 
 // Only for Chrome, no need to create an FF script for PDF.js 1->2 evaluation.
 async function runTestOnAllHtmlUrls() {
 	const testUrls = [
-		'http://example.com',
-		'https://www.theguardian.com/environment/2016/aug/02/environment-climate-change-records-broken-international-report', // https://github.com/hypothesis/client/issues/73
-		'https://telegra.ph/whatsapp-backdoor-01-16', // https://github.com/hypothesis/client/issues/558
-		'https://dashboard.wikiedu.org/training/students/wikipedia-essentials/policies-and-guidelines-basic-overview', // https://github.com/hypothesis/product-backlog/issues/493
-		'https://www.theatlantic.com/magazine/archive/1945/07/as-we-may-think/303881/', 
+		 'http://example.com',
+		 /*
+  	 'https://www.theguardian.com/environment/2016/aug/02/environment-climate-change-records-broken-international-report', // https://github.com/hypothesis/client/issues/73
+		 'https://telegra.ph/whatsapp-backdoor-01-16', // https://github.com/hypothesis/client/issues/558
+		 'https://dashboard.wikiedu.org/training/students/wikipedia-essentials/policies-and-guidelines-basic-overview', // https://github.com/hypothesis/product-backlog/issues/493
+		 'https://www.theatlantic.com/magazine/archive/1945/07/as-we-may-think/303881/',
+		 'https://www.poetryfoundation.org/poems/50364/neutral-tones',
+		 'https://hackernoon.com/why-native-app-developers-should-take-a-serious-look-at-flutter-e97361a1c073',
+		 'https://lincolnmullen.com/projects/spatial-workshop/literacy.html',
+		 'https://www.greenpeace.org/usa/reports/click-clean-virginia/',
+		 'https://www.fastcompany.com/28905/brand-called-you',
+		 'https://www.forbes.com/sites/danschawbel/2011/12/21/reviving-work-ethic-in-america/#67ab8458449a',
+		 'http://mmcr.education/courses/pls206-01-W19/readings/marbury_v_madison.html',
+		 'https://www.si.com/vault/2002/03/25/320766/the-real-new-york-giants',
+		 'https://www.nytimes.com/2018/12/08/opinion/college-gpa-career-success.html',
+		 'https://www.dartmouth.edu/~milton/reading_room/pl/book_3/text.shtml',
+		 'http://mikecosgrave.com/annotation/reclaiming-conversation-social-media/',
+		 'https://english.writingpzimmer.net/about/snow-day-billy-collins/',
+		 'https://www.facinghistory.org/resource-library/video/day-learning-2013-binna-kandola-diffusing-bias',
+		 'http://codylindley.com/frontenddevbooks/es2015enlightenment/'
+		 */
+	]
+	const omitted = [
+    // embeds client, cannot work. note: no highlights at libretexts, they are missing our css		
+		// 'https://human.libretexts.org/Bookshelves/Composition/Book%3A_Successful_College_Composition_(Crowther_et_al.)/3%3A_Rhetorical_Modes_of_Writing/3.1%3A_Narration', 
 	]
 	let results = {}
 	for (let testUrlIndex = 0; testUrlIndex < testUrls.length; testUrlIndex++) {
 		let testUrl = testUrls[testUrlIndex]
 		let result = await runHtmlTest(testUrl) 
-		writeResults(testUrlIndex, result, 'html');
+		writeResults(testUrlIndex, result, 'html')
 		results[testUrl] = result
 	}
 	writeResults('all', results, 'html')
@@ -386,10 +448,10 @@ async function runTestOnAllHtmlUrls() {
 function writeResults(testUrlIndex, result, mode) {
 	fs.writeFile(`${testUrlIndex}.${mode}.json`, JSON.stringify(result), (err) => {
 		if (err)
-			throw err;
-	});
+			throw err
+	})
 }
 
-// runTestOnAllPdfUrls()
+ runTestOnAllPdfUrls(2)
 
-runTestOnAllHtmlUrls()
+// runTestOnAllHtmlUrls()
