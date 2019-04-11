@@ -41,7 +41,7 @@ In this round I used 40 PDFs. They include those we've previously marked as prob
 1. Test: `test.js` in Puppeteer using a Chrome extension with PDF.js v2 
 2. Interactive/FF/PDF2: Firefox with its built-in PDF.js 2
 3. Interactive/Chrome/PDF1: The shipping extension
-4. Interactive/Chrome/PDF1: The same PDF.js v2 extension used in 1.
+4. Interactive/Chrome/PDF2: The same PDF.js v2 extension used in 1.
 
 I've marked test results with non-zero orphans as  * (`anomaly`). 16 of 40 are so marked. In these cases I've explored why there are orphans. 6 are explained by <a href="https://github.com/hypothesis/product-backlog/issues/954">overlap</a>, 2 by the page-boundary issue. 
 
