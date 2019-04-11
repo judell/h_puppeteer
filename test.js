@@ -144,17 +144,19 @@ async function runPdfTest(testUrlIndex, testUrl, pdfVersion) {
 		})
 	}
 
-	let { summary, finalResults } = classifyResults(interimResults, apiHighlights, replyCount, pagenoteCount)	
+	let { summaryText, summaryData, finalResults } = classifyResults(interimResults, apiHighlights, replyCount, pagenoteCount)	
 
 	await waitSeconds(waitSecondsBeforeClosingBrowser)
 
 	await browser.close()
 
 	return Promise.resolve({
-		summary: summary,
+		summaryText: summaryText,
+		summaryData: summaryData,
 		testUrl: testUrl,
 		pageNotes : pagenoteCount,
-		finalResults: finalResults
+		finalResults: finalResults,
+		pdfVersion: pdfVersion,
 	})
 }
 
@@ -209,24 +211,26 @@ async function runHtmlTest(testUrl) {
 		apiHighlights
 	)
 
-	let { summary, finalResults } = classifyResults(results, apiHighlights, replyCount, pagenoteCount)
+	let { summaryText, summaryData, finalResults } = classifyResults(results, apiHighlights, replyCount, pagenoteCount)
 
 	await waitSeconds(waitSecondsBeforeClosingBrowser)
 
 	await browser.close()
 
 	return Promise.resolve({
-		summary: summary,
+		summaryText: summaryText,
+		summaryData: summaryData,
 		testUrl: testUrl,
 		badgeCount: badgeResults.total,
-		finalResults: finalResults
+		finalResults: finalResults,
+		pdfVersion: 0,
 	})
 
 }
 
 function classifyResults( results, apiHighlights, replyCount, pagenoteCount ) {
 	let finalResults = {}
-	let summary = ''
+	let summaryText = ''
 	console.log(results)
 	Object.keys(results).forEach((id) => {
 		finalResults[id] = results[id]
@@ -259,15 +263,24 @@ function classifyResults( results, apiHighlights, replyCount, pagenoteCount ) {
 	let ids = Object.keys(finalResults)
 	let fuzzy = ids.filter((id) => { return finalResults[id].outcome === 'fuzzy' }).length
 	let exact = ids.filter((id) => { return finalResults[id].outcome === 'exact' }).length
-	let orphan = ids.filter((id) => {	return finalResults[id].outcome === 'orphan'}).length
-	let total = fuzzy + exact + orphan + replyCount + pagenoteCount
-	summary = `annotations ${fuzzy + exact} (fuzzy ${fuzzy}, exact ${exact}), replies ${replyCount}, pagenotes ${pagenoteCount}, orphans ${orphan}, total ${total}`
-	console.log(summary)
+	let orphans = ids.filter((id) => {	return finalResults[id].outcome === 'orphan'}).length
+	let total = fuzzy + exact + orphans + replyCount + pagenoteCount
+	summaryText = `annotations ${fuzzy + exact} (fuzzy ${fuzzy}, exact ${exact}), replies ${replyCount}, pagenotes ${pagenoteCount}, orphans ${orphans}, total ${total}`
+	summaryData = {
+		annotations: fuzzy + exact,
+		fuzzy: fuzzy,
+		exact: exact,
+		replyCount: replyCount,
+		pagenoteCount: pagenoteCount,
+		orphans: orphans,
+		total: total,
+	}
+	console.log(summaryText)
 	Object.keys(finalResults).forEach((id) => {
 		let pageNumber = finalResults[id].pageNumber ? finalResults[id].pageNumber : 'n/a'
 		console.log({ id: id, page: pageNumber, outcome: finalResults[id].outcome })
 	})
-	return { summary, finalResults }
+	return { summaryText, summaryData, finalResults }
 }
 
 async function getBadgeResults(testUrl) {
@@ -320,7 +333,7 @@ async function getApiHighlightsAndPagenoteReplyCounts(testUrl) {
 async function setup(testUrl, loadSeconds) {
 	let browser = await puppeteer.launch({
 		headless: false,
-		userDataDir: '/users/jon/hyp',
+		userDataDir: '/users/jon/hyp', // to remember login 
 		args: [
 			`--disable-extensions-except=${CRX_PATH}`,
 			`--load-extension=${CRX_PATH}`,
@@ -339,68 +352,54 @@ async function setup(testUrl, loadSeconds) {
 	return { page, browser }
 }
 
-function createFirefoxScript(testUrlIndex, pdfPageCount, apiHighlights) {
-	let script
-	fs.readFile('firefoxInject.js', 'utf8', (err, data) => {
-		if (err) throw err
-		script = data
-		script = script.replace('__API_HIGHLIGHTS__', JSON.stringify(apiHighlights))
-		script = script.replace('__PDF_PAGE_COUNT__', pdfPageCount)
-		fs.writeFile(`${testUrlIndex}.ff.js`, script, (err) => {
-			if (err) throw err
-		})
-	})
-}
-
 async function runTestOnAllPdfUrls(pdfVersion) {
 	const testUrls = [
-		//'http://jonudell.net/h/Knowledge%20of%20Interfaith%20Leader.pdf',
-		//'http://jonudell.net/h/osftest.pdf',
-		//'http://jonudell.net/h/power-of-habit.pdf', // scan/ocr
-		//'http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf', // https://github.com/hypothesis/product-backlog/issues/173
-		//'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0183175', // https://github.com/hypothesis/client/issues/558
-		//'http://jonudell.net/h/Rhetoric_and_Crisis.pdf',
-		//'http://download.krone.at/pdf/ceta.pdf',
-		//'http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly-and-Rochberg-Halton-1981-The-Meaning-of-Things-Domestic-Symbols-and-the-Self.pdf',
-		//'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
-		//'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338 // not a pdf
-		//'https://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf'
-		//'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
-		//'https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf',
-		//'https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf',
-		//'https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf',
-		//'https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf',
-		//'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
-		//'https://valerievacchio.files.wordpress.com/2011/10/paths-of-professional-development.pdf', // scanned, run-together targets
-		//'http://www.scu.edu.tw/philos/98class/Peng/05.pdf', // has run-together targets
-		//'https://solaresearch.org/wp-content/uploads/2017/05/chapter4.pdf', // has run-together targets
-		//'http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf', // has run-together targets
-		//'https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar-Introduction-BatB-Anthology.pdf', // scanned, run-together targets
-		//'https://www.aarp.org/content/dam/aarp/livable-communities/livable-documents/documents-2018/Book-1-Roadmap-to-Livability-Web-010218.pdf',
-		//'https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436ec20e2e72c267c6627a/1547923148732/astell_from_a_serious_proposal_to_the_ladies.pdf',
-		//'http://anthro.vancouver.wsu.edu/media/Course_files/anth-510-clare-m-wilkinson/aa194345302a00010.pdf', // scanned
-		//'http://aslearningdesign.net/3888/wp-content/uploads/2018/01/01-Technology-Matters.pdf',
-		//'http://blogs.iac.gatech.edu/afterlives2018/files/2018/01/McCloud_Understanding_Comics.pdf', // scanned
-		// 'http://blogs.iac.gatech.edu/afterlives2018/files/2018/01/Introduction-to-Kindred.pdf', // scanned
-		// 'http://bogumilkaminski.pl/files/julia_express.pdf' // date changed?
-		// 'https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/history.pdf?from=http%3A%2F%2Fresearch.microsoft.com%2Fen-us%2Fum%2Fpeople%2Fsimonpj%2Fpapers%2Fhistory-of-haskell%2Fhistory.pdf',
-		//'https://clalliance.org/wp-content/uploads/files/Quest_to_LearnMacfoundReport.pdf',
-		//'http://www.kwaldenphd.com/wp-content/uploads/2018/02/CBA-1997.pdf',
-		//'https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf',
-		//'https://www.audit.vic.gov.au/sites/default/files/2018-03/20180308-Improving-Air-Quality.pdf',
-		//'https://educatorinnovator.org/wp-content/uploads/2019/01/when-school-is-not-enough-marsyl.pdf',
-		//'https://kf6-stage.rit.albany.edu/attachments/56947546535c7c0709beee5c/5b439e63b985b22bc8c90547/1/CG764259_Report%20(4).pdf',
-		//'https://www.learner.org/courses/amerhistory/pdf/text/AmHst04_Revolutionary.pdf',
-		//'https://newclasses.nyu.edu/access/content/group/81e3bb2a-f53e-41f2-a2bd-9c1d43e1a545/07islandsofexpertise.pdf',
-		//'https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf',
-		//'http://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf',
+		'http://jonudell.net/h/Knowledge%20of%20Interfaith%20Leader.pdf',
+		'http://jonudell.net/h/osftest.pdf',
+		'http://jonudell.net/h/power-of-habit.pdf', // scan/ocr
+		'http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf', // https://github.com/hypothesis/product-backlog/issues/173
+		'http://jonudell.net/h/Rhetoric_and_Crisis.pdf',
+		'http://download.krone.at/pdf/ceta.pdf',
+		'http://wendynorris.com/wp-content/uploads/2018/12/Csikszentmihaly-and-Rochberg-Halton-1981-The-Meaning-of-Things-Domestic-Symbols-and-the-Self.pdf',
+		'https://arxiv.org/pdf/1606.02960.pdf', // https://github.com/hypothesis/client/issues/266
+		'https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0168597&type=printable', // https://github.com/hypothesis/product-backlog/issues/338 // not a pdf
+		'https://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf',
+		'http://www.inp.uw.edu.pl/mdsie/Political_Thought/Plato-Republic.pdf',
+		'https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf',
+		'https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf',
+		'https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436dd70ebbe823a7899bd8/1547922905657/braidotti_a_theoretical_framework_for_critical_posthumanities.pdf',
+		'https://digitalpressatund.files.wordpress.com/2017/04/corinth_excavations_archaeological_manual.pdf',
+		'https://www.gpo.gov/fdsys/pkg/PLAW-110publ252/pdf/PLAW-110publ252.pdf', // https://github.com/hypothesis/client/issues/259
+		'https://valerievacchio.files.wordpress.com/2011/10/paths-of-professional-development.pdf', // scanned, run-together targets
+		'http://www.scu.edu.tw/philos/98class/Peng/05.pdf', // has run-together targets
+		'https://solaresearch.org/wp-content/uploads/2017/05/chapter4.pdf', // has run-together targets
+		'http://matthematics.com/acb/appliedcalc/pdf/hofcal-chap3-all.pdf', // has run-together targets
+		'https://rampages.us/mythfolk18/wp-content/uploads/sites/29922/2018/08/Tatar-Introduction-BatB-Anthology.pdf', // scanned, run-together targets
+		'https://www.aarp.org/content/dam/aarp/livable-communities/livable-documents/documents-2018/Book-1-Roadmap-to-Livability-Web-010218.pdf',
+		'https://static1.squarespace.com/static/53713bf0e4b0297decd1ab8b/t/5c436ec20e2e72c267c6627a/1547923148732/astell_from_a_serious_proposal_to_the_ladies.pdf',
+		'http://aslearningdesign.net/3888/wp-content/uploads/2018/01/01-Technology-Matters.pdf',
+		'http://blogs.iac.gatech.edu/afterlives2018/files/2018/01/McCloud_Understanding_Comics.pdf', // scanned
+		'http://blogs.iac.gatech.edu/afterlives2018/files/2018/01/Introduction-to-Kindred.pdf', // scanned
+		'http://bogumilkaminski.pl/files/julia_express.pdf', // date changed?
+		'https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/history.pdf?from=http%3A%2F%2Fresearch.microsoft.com%2Fen-us%2Fum%2Fpeople%2Fsimonpj%2Fpapers%2Fhistory-of-haskell%2Fhistory.pdf',
+		'https://clalliance.org/wp-content/uploads/files/Quest_to_LearnMacfoundReport.pdf',
+		'http://www.kwaldenphd.com/wp-content/uploads/2018/02/CBA-1997.pdf',
+		'https://dspace.lboro.ac.uk/dspace-jspui/bitstream/2134/19987/3/979909.pdf',
+		'https://www.audit.vic.gov.au/sites/default/files/2018-03/20180308-Improving-Air-Quality.pdf',
+		'https://educatorinnovator.org/wp-content/uploads/2019/01/when-school-is-not-enough-marsyl.pdf',
+		'https://kf6-stage.rit.albany.edu/attachments/56947546535c7c0709beee5c/5b439e63b985b22bc8c90547/1/CG764259_Report%20(4).pdf',
+		'https://www.learner.org/courses/amerhistory/pdf/text/AmHst04_Revolutionary.pdf',
+		'https://newclasses.nyu.edu/access/content/group/81e3bb2a-f53e-41f2-a2bd-9c1d43e1a545/07islandsofexpertise.pdf',
+		'https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf',
+		'http://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf',
 		'https://jonudell.info/h/ee12.pdf'
 	]
+	
 	let results = {}
 	for (let testUrlIndex = 0; testUrlIndex < testUrls.length; testUrlIndex++) {
 		let testUrl = testUrls[testUrlIndex]
 		let result = await runPdfTest(testUrlIndex, testUrl, pdfVersion)
-		writeResults(testUrlIndex, result, 'pdf')
+		writeResults(testUrlIndex, result, 'pdf', pdfVersion)
 		results[testUrl] = result
 	}
 	console.log(results)
@@ -439,19 +438,19 @@ async function runTestOnAllHtmlUrls() {
 	for (let testUrlIndex = 0; testUrlIndex < testUrls.length; testUrlIndex++) {
 		let testUrl = testUrls[testUrlIndex]
 		let result = await runHtmlTest(testUrl) 
-		writeResults(testUrlIndex, result, 'html')
+		writeResults(testUrlIndex, result, 'html', '0')
 		results[testUrl] = result
 	}
 	writeResults('all', results, 'html')
 }
 
-function writeResults(testUrlIndex, result, mode) {
-	fs.writeFile(`${testUrlIndex}.${mode}.json`, JSON.stringify(result), (err) => {
+function writeResults(testUrlIndex, result, mode, pdfVersion) {
+	fs.writeFile(`${testUrlIndex}.${mode}.${pdfVersion}.json`, JSON.stringify(result), (err) => {
 		if (err)
 			throw err
 	})
 }
 
- runTestOnAllPdfUrls(2)
-
-// runTestOnAllHtmlUrls()
+//runTestOnAllPdfUrls(1)
+runTestOnAllPdfUrls(2)
+//runTestOnAllHtmlUrls()
