@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer')
 const https = require('https')
 const fs = require('fs')
 
-const hlib = require('hlib')
+const hlib = require('hlib') // a node-compatible version of https://github.com/judell/hlib
 
 const waitSecondsForExtensionToLoad = 5
 
@@ -12,8 +12,7 @@ const waitSecondsForHtmlToLoad = 30
 
 const waitSecondsBeforeClosingBrowser = 5
 
-//const CRX_PATH = '/users/jon/onedrive/h/puppeteer/1.113/'
-const CRX_PATH = '/users/jon/hyp/'
+const CRX_PATH = '/users/jon/hyp/'  // path to custom extension with this tweak: https://github.com/hypothesis/client/compare/master...judell:pass-ids-for-anchor-test
 
 async function waitSeconds(seconds) {
   function delay(seconds) {
@@ -355,6 +354,7 @@ async function setup(testUrl, loadSeconds) {
 async function runTestOnAllPdfUrls(pdfVersion) {
 	const testUrls = [
 		'http://jonudell.net/h/Knowledge%20of%20Interfaith%20Leader.pdf',
+		/*
 		'http://jonudell.net/h/osftest.pdf',
 		'http://jonudell.net/h/power-of-habit.pdf', // scan/ocr
 		'http://cdn.nmc.org/media/2017-nmc-horizon-report-he-EN.pdf', // https://github.com/hypothesis/product-backlog/issues/173
@@ -393,6 +393,7 @@ async function runTestOnAllPdfUrls(pdfVersion) {
 		'https://blog.ufes.br/kyriafinardi/files/2017/10/What-Video-Games-Have-to-Teach-us-About-Learning-and-Literacy-2003.-ilovepdf-compressed.pdf',
 		'http://twiki.cin.ufpe.br/twiki/pub/TAES/TAES2201502/295251F9-8935-4D0A-B6D3-112E91E22E44.pdf',
 		'https://jonudell.info/h/ee12.pdf'
+		*/
 	]
 	
 	let results = {}
