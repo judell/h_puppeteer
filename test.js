@@ -332,7 +332,7 @@ async function getApiHighlightsAndPagenoteReplyCounts(testUrl) {
 async function setup(testUrl, loadSeconds) {
 	let browser = await puppeteer.launch({
 		headless: false,
-		userDataDir: '/users/jon/hyp', // to remember login 
+		userDataDir: '/users/jon/hyp', // to remember login, unnecessary if tests only consider public annotations
 		args: [
 			`--disable-extensions-except=${CRX_PATH}`,
 			`--load-extension=${CRX_PATH}`,
