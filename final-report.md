@@ -1,6 +1,6 @@
 # Final report
 
-Results from the much more powerful and elegant https://github.com/hypothesis/anchoring-test-tools, for the URLs reported in results2.md, are in https://github.com/judell/h_puppeteer/blob/master/evaluate-results.json.
+Results from the much more powerful and elegant https://github.com/hypothesis/anchoring-test-tools, for the URLs reported in https://github.com/judell/h_puppeteer/blob/master/results2.md, are in https://github.com/judell/h_puppeteer/blob/master/evaluate-results.json.
 
 In 4 of 32 cases the test timed out:
 
