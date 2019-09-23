@@ -1,3 +1,7 @@
+Update: This tool is now retired in favor of @robertknight's vastly superior https://github.com/hypothesis/anchoring-test-tools
+
+---
+
 This tool compares the annotations stored in the Hypothesis database with the annotations that actually anchor in documents. It focused initially on PDFs, in order to evaluate whether there is a risk in moving from PDF.js v1 to v2. But it now also works with HTML docs.
 
 The tool rests on a pyramid of supporting technologies. At the base is headless Chrome, the next level up is the Chrome dev tools (CDP)  protocol, and then puppeteer which provides high-level abstractions over the dev tools protocol.
