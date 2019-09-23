@@ -35,9 +35,11 @@ The test extension is the H client tweaked in 2 ways:
 
 # Updates
 
-I've added the samples folder where I'll accumulate PDFs that are reported as anomalous and should be added to the test suite.
+<s>I've added the samples folder where I'll accumulate PDFs that are reported as anomalous and should be added to the test suite.</s>
 
-First: https://github.com/judell/h_puppeteer/blob/master/samples/Medieval%20Religion%20Selections.pdf. It reliably orphans in PDF.js 1 (in the stock Chrome extension), reliably works in FF and the experimental extension with PDF.js 2. 
+Samples are in https://jonudell.info/h/pdfs so they can be checked interactively.
+
+This was a clear case of PDFJS2 > PDFJS1: https://github.com/judell/h_puppeteer/blob/master/samples/Medieval%20Religion%20Selections.pdf. It reliably orphans in PDF.js 1 (in the stock Chrome extension), reliably works in FF and the experimental extension with PDF.js 2. 
 
 # Summary
 
