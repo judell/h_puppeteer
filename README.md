@@ -1,4 +1,6 @@
-Update: This tool is now retired in favor of @robertknight's vastly superior https://github.com/hypothesis/anchoring-test-tools
+Update: This tool is now retired in favor of @robertknight's vastly superior https://github.com/hypothesis/anchoring-test-tools.
+
+Final report for this tool: https://github.com/judell/h_puppeteer/blob/master/final-report.md
 
 ---
 
